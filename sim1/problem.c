@@ -105,7 +105,21 @@ void heartbeat(struct reb_simulation* r){
 }
 
 double gaussian(){
-    
+    /*
+    Compute a Guassian random variable using the Marsaglia (Box-Muller) method
+    */
+    double u, v, s, z;
+    s = 1.1;
+    while (s < 1.e-5 || s >= 1.){
+      u = 2*((double) rand()/(double) RAND_MAX) - 1.;
+      v = 2*((double) rand()/(double) RAND_MAX) - 1.;
+
+      s = pow(u, 2.) + pow(v, 2.);
+    }
+
+    z = u * pow((-2.*log(s))/s, .5);
+
+    return z;
 }
 
 int main(int argc, char* argv[]){
