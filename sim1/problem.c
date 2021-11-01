@@ -1,6 +1,15 @@
 /**
  * First attempt at building solar system model with Mercury perturbations at regular intervals
  *
+ *  TO DO:
+ *    o Check units and planet locations
+ *    o Implement normal distribution generator
+ *    o Add Mercury perturbations to heartbeat function
+ *    o Implement sorted stratified resampling method
+ *    o Splitting and killing
+ *    o Arrays for ecc max and min
+ *
+ *
  *
  */
 #include <stdio.h>
@@ -93,6 +102,10 @@ void heartbeat(struct reb_simulation* r){
         fclose(f);
         */
     }
+}
+
+double gaussian(){
+    
 }
 
 int main(int argc, char* argv[]){
