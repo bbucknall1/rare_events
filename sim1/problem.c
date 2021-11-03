@@ -9,7 +9,10 @@
  *    o Splitting and killing
  *    o Arrays for ecc max and min
  *
- *
+ *    UNITS:
+ *        distance: Astronomical Unit
+ *        time    : Earth year/2pi
+ *        mass    : Solar Mass
  *
  */
 #include <stdio.h>
@@ -18,6 +21,10 @@
 #include <math.h>
 #include "rebound.h"
 #include "reboundx.h"
+
+TWOPI = 2 * M_PI;
+SOLAR_MASS = 1.988544e30;     // Solar Mass in kg
+AU = 149597870700;         // Astronomical Unit in m
 
 double ss_pos[10][3] =
 {
@@ -47,7 +54,8 @@ double ss_vel[10][3] =
     {3.112825364672655E-03 ,  1.004673400082409E-04 ,  -9.111652976208292E-04},
 };
 
-double ss_mass[10] =
+/*
+double ss_mass[10] =            // True masses (kg)
 {
     1.988544e30,
     3.302e23,
@@ -60,6 +68,22 @@ double ss_mass[10] =
     102.41e24,
     1.4639248e+22,
 };
+*/
+
+double ss_mass[10] =            // Masses relative to Solar Mass
+{
+    1.,                         // Sun
+    3.302e23/SOLAR_MASS,        // Mercury
+    48.685e23/SOLAR_MASS,       // Venus
+    6.0477246e24/SOLAR_MASS,    // Earth
+    6.4185e23/SOLAR_MASS,       // Mars
+    1898.13e24/SOLAR_MASS,      // Jupiter
+    5.68319e26/SOLAR_MASS,      // Saturn
+    86.8103e24/SOLAR_MASS,      // Uranus
+    102.41e24/SOLAR_MASS,       // Neptune
+    1.4639248e22/SOLAR_MASS,    // Pluto
+};
+
 
 void heartbeat(struct reb_simulation* r);
 double tmax;
@@ -68,9 +92,9 @@ struct reb_simulation* init_sim(){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
     // **** CHECK UNITS
-    r->dt             = 4;                // in days
-    tmax            = 7.3e10;            // 200 Myr
-    r->G            = 1.4880826e-34;        // in AU^3 / kg / day^2.
+    r->dt             = pow(65., .5)*TWOPI/365.25; // Corresponds to ~8.062 days
+    tmax              = 5e6*TWOPI;            // 5 Myr
+    r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
     r->ri_whfast.safe_mode     = 0;        // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
     r->ri_whfast.corrector     = 11;        // 11th order symplectic corrector
     r->integrator        = REB_INTEGRATOR_WHFAST;
@@ -125,16 +149,16 @@ double gaussian(){
 int main(int argc, char* argv[]){
     struct reb_simulation* sim = init_sim();
 
-
+    /*
     struct rebx_extras* rebx = rebx_attach(sim);
     // Could also add "gr" or "gr_full" here.  See documentation for details.
     struct rebx_force* gr = rebx_load_force(rebx, "gr");
     rebx_add_force(rebx, gr);
     // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
     rebx_set_param_double(rebx, &gr->ap, "c", 10065.32);
-
+    */
     //double tmax = 5.e-1;
     reb_integrate(sim, tmax);
-    rebx_free(rebx);    // this explicitly frees all the memory allocated by REBOUNDx
+    //rebx_free(rebx);    // this explicitly frees all the memory allocated by REBOUNDx
     reb_free_simulation(sim);
 }
