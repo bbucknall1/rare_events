@@ -22,8 +22,8 @@
 #include "rebound.h"
 #include "reboundx.h"
 
-#define SOLAR_MASS 1.988544e30;     // Solar Mass in kg
-#define AU 149597870700;         // Astronomical Unit in m
+#define SOLAR_MASS 1.988544e30     // Solar Mass in kg
+#define AU 149597870700         // Astronomical Unit in m
 
 double ss_pos[10][3] =
 {
