@@ -22,9 +22,8 @@
 #include "rebound.h"
 #include "reboundx.h"
 
-TWOPI = 2 * M_PI;
-SOLAR_MASS = 1.988544e30;     // Solar Mass in kg
-AU = 149597870700;         // Astronomical Unit in m
+#define SOLAR_MASS 1.988544e30;     // Solar Mass in kg
+#define AU 149597870700;         // Astronomical Unit in m
 
 double ss_pos[10][3] =
 {
@@ -92,8 +91,8 @@ struct reb_simulation* init_sim(){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
     // **** CHECK UNITS
-    r->dt             = pow(65., .5)*TWOPI/365.25; // Corresponds to ~8.062 days
-    tmax              = 5e6*TWOPI;            // 5 Myr
+    r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
+    tmax              = 5e6*2*M_PI;            // 5 Myr
     r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
     r->ri_whfast.safe_mode     = 0;        // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
     r->ri_whfast.corrector     = 11;        // 11th order symplectic corrector
