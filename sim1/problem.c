@@ -2,7 +2,7 @@
  * First attempt at building solar system model with Mercury perturbations at regular intervals
  *
  *  TO DO:
- *    o Check units and planet locations
+ *    o Change planet locations to astronomical units
  *    o Implement normal distribution generator
  *    o Add Mercury perturbations to heartbeat function
  *    o Implement sorted stratified resampling method
