@@ -71,6 +71,24 @@ double ss_mass[10] =            // Masses relative to Solar Mass
 void heartbeat(struct reb_simulation* r);
 double tmax;
 
+double gaussian(){
+    /*
+    Compute a Guassian random variable using the Marsaglia (Box-Muller) method
+    */
+    double u, v, s, z;
+    s = 1.1;
+    while (s < 1.e-5 || s >= 1.){
+      u = 2*((double) rand()/(double) RAND_MAX) - 1.;
+      v = 2*((double) rand()/(double) RAND_MAX) - 1.;
+
+      s = pow(u, 2.) + pow(v, 2.);
+    }
+
+    z = u * pow((-2.*log(s))/s, .5);
+
+    return z;
+}
+
 struct reb_simulation* init_sim(){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
@@ -93,6 +111,11 @@ struct reb_simulation* init_sim(){
         p.m  = ss_mass[i];
         reb_add(r, p);
     }
+
+    // Initial Gaussian perturbation to Mercury x-coord
+    struct reb_particle merc = r->particles[1];
+    merc.x += (0.38/AU)*gaussian();
+
     reb_move_to_com(r);
 
     return r;
@@ -109,24 +132,12 @@ void heartbeat(struct reb_simulation* r){
         fclose(f);
         */
     }
-}
-
-double gaussian(){
-    /*
-    Compute a Guassian random variable using the Marsaglia (Box-Muller) method
-    */
-    double u, v, s, z;
-    s = 1.1;
-    while (s < 1.e-5 || s >= 1.){
-      u = 2*((double) rand()/(double) RAND_MAX) - 1.;
-      v = 2*((double) rand()/(double) RAND_MAX) - 1.;
-
-      s = pow(u, 2.) + pow(v, 2.);
+    if (reb_output_check(r, 5e5*2*M_PI)){         // Perturb Mercury x-coord every 0.5 Myr
+      struct reb_particle merc = r->particles[1];
+      double pert = 0.38*gaussian();
+      merc.x += pert/AU;
+      printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
-
-    z = u * pow((-2.*log(s))/s, .5);
-
-    return z;
 }
 
 int main(int argc, char* argv[]){
