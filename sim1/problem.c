@@ -6,6 +6,7 @@
  *    x Implement normal distribution generator
  *    x Add Mercury perturbations to heartbeat function
  *    o Implement multiple simulations
+ *    o Figure out how to pass ecc arrays to heartbeat
  *    o Arrays for ecc max and min
  *    o Implement sorted stratified resampling method
  *    o Splitting and killing
@@ -70,7 +71,7 @@ double ss_mass[10] =            // Masses relative to Solar Mass
 };
 
 
-void heartbeat(struct reb_simulation* r, double merc_ecc_max, double merc_ecc_min);
+void heartbeat(struct reb_simulation* r);
 double tmax;
 
 double gaussian(){
@@ -123,7 +124,7 @@ struct reb_simulation* init_sim(){
     return r;
 }
 
-void heartbeat(struct reb_simulation* r, double merc_ecc_max, double merc_ecc_min){
+void heartbeat(struct reb_simulation* r){
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
         reb_output_timing(r, tmax);
         reb_integrator_synchronize(r);
@@ -141,13 +142,13 @@ void heartbeat(struct reb_simulation* r, double merc_ecc_max, double merc_ecc_mi
       printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
     if (reb_output_check(r, 1e6*2*M_PI)){         // Splitting and killing every 1 Myr
-      double merc_ecc_range = merc_ecc_max - merc_ecc_min;
 
     }
 }
 
 int main(int argc, char* argv[]){
 
+    // Get inputs ==============================================================
     int N = 1;
     if (argc == 1){
       printf("Initialising a single simulation\n\n");
@@ -159,11 +160,22 @@ int main(int argc, char* argv[]){
       return 1;
     }
 
+    // Initialise simulations ==================================================
     struct reb_simulation** sims = malloc(N*sizeof(struct reb_simulation*));
     struct rebx_extras** rebx = malloc(N*sizeof(struct rebx_extras*));
+    // Arrays to store max and min values of Mercury's eccentricity for each simulation
+    double merc_ecc_max[N];
+    double merc_ecc_min[N];
+    struct reb_orbit merc_orb;
+
     for (int i = 0; i < N; i++){
       printf("Initialising simulation %d\n", i+1);
       sims[i] = init_sim();
+
+      // Get initial values of Mercury's eccentricity in each simulation
+      merc_orb = reb_tools_particle_to_orbit(sims[i]->G, sims[i]->particles[1], sims[i]->particles[0]);
+      merc_ecc_max[i] = merc_orb.e;
+      merc_ecc_min[i] = merc_orb.e;
 
       rebx[i] = rebx_attach(sims[i]);
       // Could also add "gr" or "gr_full" here.  See documentation for details.
@@ -173,18 +185,12 @@ int main(int argc, char* argv[]){
       rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);
     }
 
-    // Get initial values of Mercury's eccentricity
     /*
-    struct reb_particle merc = sim->particles[1];
-    struct reb_orbit merc_orb = reb_tools_particle_to_orbit(sim->G, sim->particles[1], sim->particles[0]);
-    double merc_ecc_max = merc_orb.e;
-    double merc_ecc_min = merc_orb.e;
-
     //double tmax = 5.e-1;
     reb_integrate(sim, tmax);
-    //rebx_free(rebx);    // this explicitly frees all the memory allocated by REBOUNDx
-    reb_free_simulation(sim);
     */
+
+    // Free simulations ========================================================
     for (int i = 0; i < N; i++){
       printf("Freeing simulation %d\n", i+1);
 
@@ -194,4 +200,5 @@ int main(int argc, char* argv[]){
     free(sims);
 
     printf("\n ====END==== \n");
+    return 0;
 }
