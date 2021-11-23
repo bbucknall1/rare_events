@@ -97,7 +97,7 @@ struct reb_simulation* init_sim(){
     // Setup constants
     // **** CHECK UNITS
     r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
-    tmax              = 5e6*2*M_PI;            // 5 Myr
+    //tmax              = 5e6*2*M_PI;            // 5 Myr
     r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
     r->ri_whfast.safe_mode     = 0;        // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
     r->ri_whfast.corrector     = 11;        // 11th order symplectic corrector
@@ -125,6 +125,12 @@ struct reb_simulation* init_sim(){
 }
 
 void heartbeat(struct reb_simulation* r){
+    if (reb_output_check(r, 5e5*2*M_PI)){         // Perturb Mercury x-coord every 0.5 Myr
+      struct reb_particle merc = r->particles[1];
+      double pert = 0.38*gaussian();
+      merc.x += pert/AU;
+      printf("\nPerturbed Mercury's x-coordinate by %f \n", pert);
+    }
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
         reb_output_timing(r, tmax);
         reb_integrator_synchronize(r);
@@ -135,26 +141,14 @@ void heartbeat(struct reb_simulation* r){
         fclose(f);
         */
     }
-    if (reb_output_check(r, 5e5*2*M_PI)){         // Perturb Mercury x-coord every 0.5 Myr
-      struct reb_particle merc = r->particles[1];
-      double pert = 0.38*gaussian();
-      merc.x += pert/AU;
-      printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
-    }
-    if (reb_output_check(r, 1e6*2*M_PI)){         // Splitting and killing every 1 Myr
-
-    }
 }
 
 int main(int argc, char* argv[]){
 
     // Get inputs ==============================================================
     int N = 1;
-    if (argc == 1){
-      printf("Initialising a single simulation\n\n");
-    } else if (argc == 2){
+    if (argc == 2){
       N = atoi(argv[1]);
-      printf("Initialising %d simulations\n\n", N);
     } else {
       printf("Incorrect input arguments: aborting\n");
       return 1;
@@ -185,14 +179,20 @@ int main(int argc, char* argv[]){
       rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);
     }
 
-    /*
+    double times[5] = {1e6*2*M_PI, 2e6*2*M_PI, 3e6*2*M_PI, 4e6*2*M_PI, 5e6*2*M_PI};
     //double tmax = 5.e-1;
-    reb_integrate(sim, tmax);
-    */
+    for (int i = 0; i < 5; i++){
+      for (int j = 0; j < N; j++){
+        printf("\n\nIntegrating simulation %d until resampling time %f\n", j+1, times[i]);
+        reb_integrate(sims[j], times[i]);
+      }
+    }
+
+
 
     // Free simulations ========================================================
     for (int i = 0; i < N; i++){
-      printf("Freeing simulation %d\n", i+1);
+      printf("\nFreeing simulation %d", i+1);
 
       rebx_free(rebx[i]);
       reb_free_simulation(sims[i]);
