@@ -1,12 +1,13 @@
 /**
  * First attempt at building solar system model with Mercury perturbations at regular intervals
+ * Now includes multi-simulations, and stopping at regular intervals for resampling (still to implement)
  *
  *  TO DO:
  *    x Change planet locations to astronomical units
  *    x Implement normal distribution generator
  *    x Add Mercury perturbations to heartbeat function
- *    o Implement multiple simulations
- *    o Figure out how to pass ecc arrays to heartbeat
+ *    x Implement multiple simulations
+ *    o Figure out how to pass ecc arrays to heartbeat - Just use global variables?
  *    o Arrays for ecc max and min
  *    o Implement sorted stratified resampling method
  *    o Splitting and killing
