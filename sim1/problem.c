@@ -8,6 +8,7 @@
  *    x Add Mercury perturbations to heartbeat function
  *    x Implement multiple simulations
  *    o Figure out how to pass ecc arrays to heartbeat - Just use global variables?
+ *      --- actually this doesn't need to be done as resampling is carried out in main()
  *    o Arrays for ecc max and min
  *    o Implement sorted stratified resampling method
  *    o Splitting and killing
