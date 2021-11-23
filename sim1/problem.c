@@ -148,34 +148,50 @@ void heartbeat(struct reb_simulation* r, double merc_ecc_max, double merc_ecc_mi
 
 int main(int argc, char* argv[]){
 
+    int N = 1;
     if (argc == 1){
-      printf("Initialising a single simulation\n");
+      printf("Initialising a single simulation\n\n");
     } else if (argc == 2){
-      int N = atoi(argv[1]);
-      printf("Initialising %d simulations\n", N);
+      N = atoi(argv[1]);
+      printf("Initialising %d simulations\n\n", N);
     } else {
       printf("Incorrect input arguments: aborting\n");
       return 1;
     }
 
-    struct reb_simulation* sim = init_sim();
+    struct reb_simulation** sims = malloc(N*sizeof(struct reb_simulation*));
+    struct rebx_extras** rebx = malloc(N*sizeof(struct rebx_extras*));
+    for (int i = 0; i < N; i++){
+      printf("Initialising simulation %d\n", i+1);
+      sims[i] = init_sim();
+
+      rebx[i] = rebx_attach(sims[i]);
+      // Could also add "gr" or "gr_full" here.  See documentation for details.
+      struct rebx_force* gr = rebx_load_force(rebx[i], "gr");
+      rebx_add_force(rebx[i], gr);
+      // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
+      rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);
+    }
 
     // Get initial values of Mercury's eccentricity
+    /*
     struct reb_particle merc = sim->particles[1];
     struct reb_orbit merc_orb = reb_tools_particle_to_orbit(sim->G, sim->particles[1], sim->particles[0]);
     double merc_ecc_max = merc_orb.e;
     double merc_ecc_min = merc_orb.e;
 
-
-    struct rebx_extras* rebx = rebx_attach(sim);
-    // Could also add "gr" or "gr_full" here.  See documentation for details.
-    struct rebx_force* gr = rebx_load_force(rebx, "gr");
-    rebx_add_force(rebx, gr);
-    // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
-    rebx_set_param_double(rebx, &gr->ap, "c", 10065.32);
-
     //double tmax = 5.e-1;
     reb_integrate(sim, tmax);
     //rebx_free(rebx);    // this explicitly frees all the memory allocated by REBOUNDx
     reb_free_simulation(sim);
+    */
+    for (int i = 0; i < N; i++){
+      printf("Freeing simulation %d\n", i+1);
+
+      rebx_free(rebx[i]);
+      reb_free_simulation(sims[i]);
+    }
+    free(sims);
+
+    printf("\n ====END==== \n");
 }
