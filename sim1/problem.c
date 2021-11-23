@@ -4,10 +4,12 @@
  *  TO DO:
  *    x Change planet locations to astronomical units
  *    x Implement normal distribution generator
- *    o Add Mercury perturbations to heartbeat function
+ *    x Add Mercury perturbations to heartbeat function
+ *    o Implement multiple simulations
+ *    o Arrays for ecc max and min
  *    o Implement sorted stratified resampling method
  *    o Splitting and killing
- *    o Arrays for ecc max and min
+ *
  *
  *    UNITS:
  *        distance: Astronomical Unit
@@ -68,7 +70,7 @@ double ss_mass[10] =            // Masses relative to Solar Mass
 };
 
 
-void heartbeat(struct reb_simulation* r);
+void heartbeat(struct reb_simulation* r, double merc_ecc_max, double merc_ecc_min);
 double tmax;
 
 double gaussian(){
@@ -121,8 +123,8 @@ struct reb_simulation* init_sim(){
     return r;
 }
 
-void heartbeat(struct reb_simulation* r){
-    if (reb_output_check(r, 10000.)){
+void heartbeat(struct reb_simulation* r, double merc_ecc_max, double merc_ecc_min){
+    if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
         reb_output_timing(r, tmax);
         reb_integrator_synchronize(r);
         /*
@@ -138,10 +140,31 @@ void heartbeat(struct reb_simulation* r){
       merc.x += pert/AU;
       printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
+    if (reb_output_check(r, 1e6*2*M_PI)){         // Splitting and killing every 1 Myr
+      double merc_ecc_range = merc_ecc_max - merc_ecc_min;
+
+    }
 }
 
 int main(int argc, char* argv[]){
+
+    if (argc == 1){
+      printf("Initialising a single simulation\n");
+    } else if (argc == 2){
+      int N = atoi(argv[1]);
+      printf("Initialising %d simulations\n", N);
+    } else {
+      printf("Incorrect input arguments: aborting\n");
+      return 1;
+    }
+
     struct reb_simulation* sim = init_sim();
+
+    // Get initial values of Mercury's eccentricity
+    struct reb_particle merc = sim->particles[1];
+    struct reb_orbit merc_orb = reb_tools_particle_to_orbit(sim->G, sim->particles[1], sim->particles[0]);
+    double merc_ecc_max = merc_orb.e;
+    double merc_ecc_min = merc_orb.e;
 
 
     struct rebx_extras* rebx = rebx_attach(sim);
