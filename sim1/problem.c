@@ -1,6 +1,9 @@
 /**
  * First attempt at building solar system model with Mercury perturbations at regular intervals
  * Now includes multi-simulations, and stopping at regular intervals for resampling (still to implement)
+
+ ******** REQUIRES MODIFIED rebound.h FILE WITH NEW SIMULATION PARAMETERS
+
  *
  *  TO DO:
  *    x Change planet locations to astronomical units
@@ -11,7 +14,7 @@
  *    x Update eccentricities at each heartbeat call?
  *    x **NO LONGER NEEDED** Array for particle weights
  *    o Implement sorted stratified resampling method
- *    o Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity
+ *    o Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity range
  *
  *
  *    UNITS:
@@ -97,8 +100,9 @@ double gaussian(){
 struct reb_simulation* init_sim(int sim_id){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
-    // **** CHECK UNITS
     r->sim_id = sim_id;
+    r->sim_weight = 1.;     // 1 = exp(0)
+
     r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
     //tmax              = 5e6*2*M_PI;            // 5 Myr
     r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
@@ -134,17 +138,12 @@ void heartbeat(struct reb_simulation* r){
       merc.x += pert/AU;
       printf("\nPerturbed Mercury's x-coordinate by %f \n", pert);
     }
+
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
         reb_output_timing(r, tmax);
         reb_integrator_synchronize(r);
-        /*
-        FILE* f = fopen("energy.txt","a");
-        double e = reb_tools_energy(r);
-        fprintf(f,"%e %e\n",r->t, fabs((e-e_init)/e_init));
-        fclose(f);
-        */
-        // Update ecc max and min eccs here?
 
+        // Update max and min eccentricities
         struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[1], r->particles[0]);
         if (merc_orb.e > r->merc_ecc_max){
           r->merc_ecc_max = merc_orb.e;
@@ -152,15 +151,16 @@ void heartbeat(struct reb_simulation* r){
         if (merc_orb.e < r->merc_ecc_min){
           r->merc_ecc_min = merc_orb.e;
         }
-
     }
 }
 
 int main(int argc, char* argv[]){
 
     // Get inputs ==============================================================
-    int N = 1;
-    if (argc == 2){
+    int N;
+    if (argc == 1){
+      N = 1;
+    } else if (argc == 2){
       N = atoi(argv[1]);
     } else {
       printf("Incorrect input arguments: aborting\n");
@@ -182,8 +182,6 @@ int main(int argc, char* argv[]){
       sims[i]->merc_ecc_max = merc_orb.e;
       sims[i]->merc_ecc_min = merc_orb.e;
 
-      sims[i]->sim_weight = 1./N;
-
       rebx[i] = rebx_attach(sims[i]);
       // Could also add "gr" or "gr_full" here.  See documentation for details.
       struct rebx_force* gr = rebx_load_force(rebx[i], "gr");
@@ -204,7 +202,7 @@ int main(int argc, char* argv[]){
       // Sorted stratified resampling goes here:
 
 
-
+      // Then reset max and min eccentricites to current
     }
 
 
