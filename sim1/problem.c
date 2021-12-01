@@ -171,6 +171,8 @@ int main(int argc, char* argv[]){
     struct reb_simulation** sims = malloc(N*sizeof(struct reb_simulation*));
     struct rebx_extras** rebx = malloc(N*sizeof(struct rebx_extras*));
 
+    double avg_weight = 1.;
+
     struct reb_orbit merc_orb;
 
     for (int i = 0; i < N; i++){
