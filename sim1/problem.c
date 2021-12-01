@@ -9,9 +9,11 @@
  *    x Implement multiple simulations
  *    o Figure out how to pass ecc arrays to heartbeat - Just use global variables?
  *      --- actually this doesn't need to be done as resampling is carried out in main()
- *    o Arrays for ecc max and min
+ *    x Arrays for ecc max and min
+ *    o Update eccentricities at each heartbeat call?
+ *    o Array for particle weights
  *    o Implement sorted stratified resampling method
- *    o Splitting and killing
+ *    o Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity
  *
  *
  *    UNITS:
@@ -75,6 +77,10 @@ double ss_mass[10] =            // Masses relative to Solar Mass
 
 void heartbeat(struct reb_simulation* r);
 double tmax;
+/*
+double* merc_ecc_max;   // Declare as global variables for access within heartbeat function
+double* merc_ecc_min;
+*/
 
 double gaussian(){
     /*
@@ -94,10 +100,11 @@ double gaussian(){
     return z;
 }
 
-struct reb_simulation* init_sim(){
+struct reb_simulation* init_sim(int i){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
     // **** CHECK UNITS
+    r->sim_id = i;
     r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
     //tmax              = 5e6*2*M_PI;            // 5 Myr
     r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
@@ -142,6 +149,11 @@ void heartbeat(struct reb_simulation* r){
         fprintf(f,"%e %e\n",r->t, fabs((e-e_init)/e_init));
         fclose(f);
         */
+        // Update ecc max and min eccs here?
+        /*
+        struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[1], r->particles[0]);
+        if (merc_orb.e > )
+        */
     }
 }
 
@@ -159,19 +171,31 @@ int main(int argc, char* argv[]){
     // Initialise simulations ==================================================
     struct reb_simulation** sims = malloc(N*sizeof(struct reb_simulation*));
     struct rebx_extras** rebx = malloc(N*sizeof(struct rebx_extras*));
+
     // Arrays to store max and min values of Mercury's eccentricity for each simulation
+    /*
     double merc_ecc_max[N];
     double merc_ecc_min[N];
+
+    merc_ecc_max = (double *)malloc(N*sizeof(double));
+    merc_ecc_min = (double *)malloc(N*sizeof(double));
+    */
     struct reb_orbit merc_orb;
+
+    double weights[N];
 
     for (int i = 0; i < N; i++){
       printf("Initialising simulation %d\n", i+1);
-      sims[i] = init_sim();
+      sims[i] = init_sim(i);
 
       // Get initial values of Mercury's eccentricity in each simulation
       merc_orb = reb_tools_particle_to_orbit(sims[i]->G, sims[i]->particles[1], sims[i]->particles[0]);
-      merc_ecc_max[i] = merc_orb.e;
-      merc_ecc_min[i] = merc_orb.e;
+      sims[i]->merc_ecc_max = merc_orb.e;
+      sims[i]->merc_ecc_min = merc_orb.e;
+      //merc_ecc_max[i] = merc_orb.e;
+      //merc_ecc_min[i] = merc_orb.e;
+
+      weights[i] = 1./N;
 
       rebx[i] = rebx_attach(sims[i]);
       // Could also add "gr" or "gr_full" here.  See documentation for details.
@@ -181,6 +205,7 @@ int main(int argc, char* argv[]){
       rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);
     }
 
+    // Carry out resampling!!!!!
     double times[5] = {1e6*2*M_PI, 2e6*2*M_PI, 3e6*2*M_PI, 4e6*2*M_PI, 5e6*2*M_PI};
     //double tmax = 5.e-1;
     for (int i = 0; i < 5; i++){
@@ -188,6 +213,11 @@ int main(int argc, char* argv[]){
         printf("\n\nIntegrating simulation %d until resampling time %f\n", j+1, times[i]);
         reb_integrate(sims[j], times[i]);
       }
+      printf("All simulations are now at time %f\n", times[i]);
+      // Sorted stratified resampling goes here:
+
+
+
     }
 
 
