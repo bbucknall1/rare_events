@@ -77,10 +77,6 @@ double ss_mass[10] =            // Masses relative to Solar Mass
 
 void heartbeat(struct reb_simulation* r);
 double tmax;
-/*
-double* merc_ecc_max;   // Declare as global variables for access within heartbeat function
-double* merc_ecc_min;
-*/
 
 double gaussian(){
     /*
@@ -150,10 +146,15 @@ void heartbeat(struct reb_simulation* r){
         fclose(f);
         */
         // Update ecc max and min eccs here?
-        /*
+
         struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[1], r->particles[0]);
-        if (merc_orb.e > )
-        */
+        if (merc_orb.e > r->merc_ecc_max){
+          r->merc_ecc_max = merc_orb.e;
+        }
+        if (merc_orb.e < r->merc_ecc_min){
+          r->merc_ecc_min = merc_orb.e;
+        }
+
     }
 }
 
@@ -172,17 +173,7 @@ int main(int argc, char* argv[]){
     struct reb_simulation** sims = malloc(N*sizeof(struct reb_simulation*));
     struct rebx_extras** rebx = malloc(N*sizeof(struct rebx_extras*));
 
-    // Arrays to store max and min values of Mercury's eccentricity for each simulation
-    /*
-    double merc_ecc_max[N];
-    double merc_ecc_min[N];
-
-    merc_ecc_max = (double *)malloc(N*sizeof(double));
-    merc_ecc_min = (double *)malloc(N*sizeof(double));
-    */
     struct reb_orbit merc_orb;
-
-    double weights[N];
 
     for (int i = 0; i < N; i++){
       printf("Initialising simulation %d\n", i+1);
@@ -192,10 +183,8 @@ int main(int argc, char* argv[]){
       merc_orb = reb_tools_particle_to_orbit(sims[i]->G, sims[i]->particles[1], sims[i]->particles[0]);
       sims[i]->merc_ecc_max = merc_orb.e;
       sims[i]->merc_ecc_min = merc_orb.e;
-      //merc_ecc_max[i] = merc_orb.e;
-      //merc_ecc_min[i] = merc_orb.e;
 
-      weights[i] = 1./N;
+      sims[i]->sim_weight = 1./N;
 
       rebx[i] = rebx_attach(sims[i]);
       // Could also add "gr" or "gr_full" here.  See documentation for details.

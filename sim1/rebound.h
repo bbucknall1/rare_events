@@ -457,6 +457,7 @@ struct reb_simulation {
     int     sim_id;
     double  merc_ecc_max;
     double  merc_ecc_min;
+    double  sim_weight;
     // End additions
 
     unsigned int force_is_velocity_dependent;
