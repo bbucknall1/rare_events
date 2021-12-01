@@ -7,11 +7,9 @@
  *    x Implement normal distribution generator
  *    x Add Mercury perturbations to heartbeat function
  *    x Implement multiple simulations
- *    o Figure out how to pass ecc arrays to heartbeat - Just use global variables?
- *      --- actually this doesn't need to be done as resampling is carried out in main()
- *    x Arrays for ecc max and min
- *    o Update eccentricities at each heartbeat call?
- *    o Array for particle weights
+ *    x **NO LONGER NEEDED** Arrays for ecc max and min
+ *    x Update eccentricities at each heartbeat call?
+ *    x **NO LONGER NEEDED** Array for particle weights
  *    o Implement sorted stratified resampling method
  *    o Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity
  *
@@ -96,11 +94,11 @@ double gaussian(){
     return z;
 }
 
-struct reb_simulation* init_sim(int i){
+struct reb_simulation* init_sim(int sim_id){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
     // **** CHECK UNITS
-    r->sim_id = i;
+    r->sim_id = sim_id;
     r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
     //tmax              = 5e6*2*M_PI;            // 5 Myr
     r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
