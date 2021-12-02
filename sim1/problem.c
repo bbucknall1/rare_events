@@ -196,12 +196,20 @@ int main(int argc, char* argv[]){
     double times[5] = {1e6*2*M_PI, 2e6*2*M_PI, 3e6*2*M_PI, 4e6*2*M_PI, 5e6*2*M_PI};
     //double tmax = 5.e-1;
     for (int i = 0; i < 5; i++){
-      for (int j = 0; j < N; j++){
-        printf("\n\nIntegrating simulation %d until resampling time %f\n", j+1, times[i]);
-        reb_integrate(sims[j], times[i]);
+      for (int idx = 0; idx < N; idx++){
+        printf("\n\nIntegrating simulation %d until resampling time %f\n", idx+1, times[i]);
+        reb_integrate(sims[idx], times[i]);
       }
       printf("All simulations are now at time %f\n", times[i]);
-      // Sorted stratified resampling goes here:
+      /* Sorted stratified resampling goes here: */
+
+      // Create array of 'thetas' (Eccentricity range)
+      double thetas[N];
+      for (int idx = 0; idx < N; idx++){
+        thetas[idx] = sims[idx]->merc_ecc_max - sims[idx]->merc_ecc_min;
+      }
+
+      // Sort sims into increasing thetas
 
 
       // Then reset max and min eccentricites to current
