@@ -226,7 +226,7 @@ int main(int argc, char* argv[]){
       }
       printf("All simulations are now at time %f\n", times[i]);
       /* Sorted stratified resampling goes here: */
-
+      
       // Create array of 'thetas' (Eccentricity range)
       double thetas[N];
       for (int idx = 0; idx < N; idx++){
