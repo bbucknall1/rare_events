@@ -154,6 +154,30 @@ void heartbeat(struct reb_simulation* r){
     }
 }
 
+void sort_sims(double* thetas, struct reb_simulation** sims, int N){
+    // Use insertion sort to order simulations in increasing values of theta (eccentricity range)
+
+    int j;
+    double temp_theta;
+    struct reb_simulation* temp_sim;
+
+    for (int i = 1; i < N; i++){
+      temp_theta = thetas[i];
+      temp_sim   = sims[i];
+      j = i - 1;
+
+      while (j >= 0 && thetas[j] > temp_theta){
+        thetas[j+1] = thetas[j];
+        sims[j+1]   = sims[j];
+        j--;
+      }
+
+      thetas[j+1] = temp_theta;
+      sims[j+1]   = temp_sim;
+    }
+
+}
+
 int main(int argc, char* argv[]){
 
     // Get inputs ==============================================================
@@ -210,6 +234,10 @@ int main(int argc, char* argv[]){
       }
 
       // Sort sims into increasing thetas
+      sort_sims(thetas, sims, N);
+      for (int idx = 0; idx < N; idx++){
+        sims[idx]->sim_id = idx;
+      }
 
 
       // Then reset max and min eccentricites to current
