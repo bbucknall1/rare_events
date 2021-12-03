@@ -156,7 +156,6 @@ void heartbeat(struct reb_simulation* r){
 
 void sort_sims(double* thetas, struct reb_simulation** sims, int N){
     // Use insertion sort to order simulations in increasing values of theta (eccentricity range)
-
     int j;
     double temp_theta;
     struct reb_simulation* temp_sim;
@@ -165,17 +164,14 @@ void sort_sims(double* thetas, struct reb_simulation** sims, int N){
       temp_theta = thetas[i];
       temp_sim   = sims[i];
       j = i - 1;
-
       while (j >= 0 && thetas[j] > temp_theta){
         thetas[j+1] = thetas[j];
         sims[j+1]   = sims[j];
         j--;
       }
-
       thetas[j+1] = temp_theta;
       sims[j+1]   = temp_sim;
     }
-
 }
 
 int main(int argc, char* argv[]){
@@ -216,9 +212,8 @@ int main(int argc, char* argv[]){
       rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);
     }
 
-    // Carry out resampling!!!!!
+    // Integrate simulations ===================================================
     double times[5] = {1e6*2*M_PI, 2e6*2*M_PI, 3e6*2*M_PI, 4e6*2*M_PI, 5e6*2*M_PI};
-    //double tmax = 5.e-1;
     for (int i = 0; i < 5; i++){
       for (int idx = 0; idx < N; idx++){
         printf("\n\nIntegrating simulation %d until resampling time %f\n", idx+1, times[i]);
@@ -226,7 +221,7 @@ int main(int argc, char* argv[]){
       }
       printf("All simulations are now at time %f\n", times[i]);
       /* Sorted stratified resampling goes here: */
-      
+
       // Create array of 'thetas' (Eccentricity range)
       double thetas[N];
       for (int idx = 0; idx < N; idx++){
@@ -235,12 +230,20 @@ int main(int argc, char* argv[]){
 
       // Sort sims into increasing thetas
       sort_sims(thetas, sims, N);
+
+      // Relabel simulations based on their new ordering
       for (int idx = 0; idx < N; idx++){
         sims[idx]->sim_id = idx;
       }
 
 
+
       // Then reset max and min eccentricites to current
+      for (int idx = 0; idx < N; idx++){
+        merc_orb = reb_tools_particle_to_orbit(sims[i]->G, sims[i]->particles[1], sims[i]->particles[0])
+        sims[idx]->merc_ecc_max = merc_orb.e;
+        sims[idx]->merc_ecc_max = merc_orb.e;
+      }
     }
 
 
