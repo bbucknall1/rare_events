@@ -2,7 +2,7 @@
  * First attempt at building solar system model with Mercury perturbations at regular intervals
  * Now includes multi-simulations, and stopping at regular intervals for resampling (still to implement)
 
- ******** REQUIRES MODIFIED rebound.h FILE WITH NEW SIMULATION PARAMETERS
+ ******** REQUIRES MODIFIED rebound.h FILE WITH NEW SIMULATION PARAMETERS ********
 
  *
  *  TO DO:
@@ -13,6 +13,7 @@
  *    x **NO LONGER NEEDED** Arrays for ecc max and min
  *    x Update eccentricities at each heartbeat call?
  *    x **NO LONGER NEEDED** Array for particle weights
+ *    o REWEIGHTING
  *    o Implement sorted stratified resampling method
  *    o Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity range
  *
@@ -214,18 +215,38 @@ int main(int argc, char* argv[]){
 
     // Integrate simulations ===================================================
     double times[5] = {1e6*2*M_PI, 2e6*2*M_PI, 3e6*2*M_PI, 4e6*2*M_PI, 5e6*2*M_PI};
+
+    double resampling_bnds[N-1];
+    double total_sum_weights;
+    double partial_sum_weights;
+
     for (int i = 0; i < 5; i++){
       for (int idx = 0; idx < N; idx++){
         printf("\n\nIntegrating simulation %d until resampling time %f\n", idx+1, times[i]);
         reb_integrate(sims[idx], times[i]);
       }
       printf("All simulations are now at time %f\n", times[i]);
+
+      /* REWEIGHTING!!!!!! */
+      // Create array of 'thetas' (Eccentricity range)
+      double theta;
+      double thetas[N];
+      double new_weight;
+      for (int idx = 0; idx < N; idx++){
+        theta = sims[idx]->merc_ecc_max - sims[idx]->merc_ecc_min;
+
+        new_weight = 
+
+        thetas[idx] = theta;
+
+      }
+
       /* Sorted stratified resampling goes here: */
 
-      // Create array of 'thetas' (Eccentricity range)
-      double thetas[N];
+      // Sum total weights
+      sum_weights = 0.;
       for (int idx = 0; idx < N; idx++){
-        thetas[idx] = sims[idx]->merc_ecc_max - sims[idx]->merc_ecc_min;
+        total_sum_weights += sims[idx]->sim_weight;
       }
 
       // Sort sims into increasing thetas
@@ -236,6 +257,13 @@ int main(int argc, char* argv[]){
         sims[idx]->sim_id = idx;
       }
 
+      printf("Resampling bounds:\n")
+      partial_sum_weights = 0.;
+      for (int idx = 0; idx < N-1; i++){
+        partial_sum_weights += sims[idx]->sim_weight;
+        resampling_bnds[idx] = partial_sum_weights/total_sum_weights;
+        printf("")
+      }
 
 
       // Then reset max and min eccentricites to current
