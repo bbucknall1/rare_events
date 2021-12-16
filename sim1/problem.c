@@ -135,10 +135,10 @@ struct reb_simulation* init_sim(int sim_id){
 
 void heartbeat(struct reb_simulation* r){
     if (reb_output_check(r, 5e5*2*M_PI)){         // Perturb Mercury x-coord every 0.5 Myr
-      struct reb_particle merc = r->particles[1];
-      double pert = 0.38*gaussian();
-      merc.x += pert/AU;
-      printf("\nPerturbed Mercury's x-coordinate by %f \n", pert);
+      //double pert = 0.38*gaussian();
+      double pert = 100*gaussian();
+      r->particles[1].x += pert/AU;
+      printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
 
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
@@ -149,6 +149,7 @@ void heartbeat(struct reb_simulation* r){
         struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[1], r->particles[0]);
         if (merc_orb.e > r->merc_ecc_max){
           r->merc_ecc_max = merc_orb.e;
+          printf("\nNew max ecc: %f\n", r->merc_ecc_max);
         }
         if (merc_orb.e < r->merc_ecc_min){
           r->merc_ecc_min = merc_orb.e;
@@ -220,16 +221,16 @@ int main(int argc, char* argv[]){
     double resampling_bnds[N-1];
     double total_sum_weights;
     double partial_sum_weights;
-    double avg_weight;
 
-    for (int i = 0; i < 5; i++){
+    for (int i = 0; i < 5; i++){                  // i is resampling iteration
+      // ======================== Integrate simulations ========================
       for (int idx = 0; idx < N; idx++){
-        printf("\n\nIntegrating simulation %d until resampling time %f\n", idx+1, times[i]);
+        printf("\nIntegrating simulation %d until resampling time %f\n", idx+1, times[i]);
         reb_integrate(sims[idx], times[i]);
       }
-      printf("All simulations are now at time %f\n", times[i]);
+      printf("\nAll simulations are now at time %f\n", times[i]);
 
-      /* REWEIGHTING!!!!!! */
+      // =========================== 2a: Reweighting ===========================
       // Create array of 'thetas' (Eccentricity range)
       double theta;
       double thetas[N];
@@ -249,13 +250,15 @@ int main(int argc, char* argv[]){
 
         sims[idx]->prev_V = theta;
         thetas[idx] = theta;
+        printf("Simulation %d had max and min eccentricity of (%f, %f), so theta = %f\n", idx, sims[idx]->merc_ecc_max, sims[idx]->merc_ecc_min, theta);
       }
 
       for (int idx = 0; idx < N; idx++){
         sims[idx]->sim_weight = new_weights[idx];
+        printf("Simulation %d has current Mercury eccentricity %f\n", idx, reb_tools_particle_to_orbit(sims[idx]->G, sims[idx]->particles[1], sims[idx]->particles[0]).e);
       }
 
-      /* Sorted stratified resampling goes here: */
+      // =========================== 2b: Resampling ============================
 
       // Sort sims into increasing thetas
       sort_sims(thetas, sims, N);
@@ -265,18 +268,17 @@ int main(int argc, char* argv[]){
         sims[idx]->sim_id = idx;
       }
 
-      printf("Resampling bounds:\n")
       partial_sum_weights = 0.;
-      for (int idx = 0; idx < N-1; i++){
+      for (int idx = 0; idx < N-1; idx++){
         partial_sum_weights += sims[idx]->sim_weight;
         resampling_bnds[idx] = partial_sum_weights/total_sum_weights;
-        printf("")
+        printf("Resampling bound %d is %f\n", idx+1, resampling_bnds[idx]);
       }
 
 
       // Then reset max and min eccentricites to current
       for (int idx = 0; idx < N; idx++){
-        merc_orb = reb_tools_particle_to_orbit(sims[i]->G, sims[i]->particles[1], sims[i]->particles[0])
+        merc_orb = reb_tools_particle_to_orbit(sims[i]->G, sims[i]->particles[1], sims[i]->particles[0]);
         sims[idx]->merc_ecc_max = merc_orb.e;
         sims[idx]->merc_ecc_max = merc_orb.e;
       }
