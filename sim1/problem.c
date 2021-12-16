@@ -102,7 +102,8 @@ struct reb_simulation* init_sim(int sim_id){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
     r->sim_id = sim_id;
-    r->sim_weight = 1.;     // 1 = exp(0)
+    r->sim_weight = 1.;     // 1 = exp(0) .... eq (4)
+    r->prev_V = 0.;
 
     r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
     //tmax              = 5e6*2*M_PI;            // 5 Myr
@@ -219,6 +220,7 @@ int main(int argc, char* argv[]){
     double resampling_bnds[N-1];
     double total_sum_weights;
     double partial_sum_weights;
+    double avg_weight;
 
     for (int i = 0; i < 5; i++){
       for (int idx = 0; idx < N; idx++){
@@ -231,23 +233,29 @@ int main(int argc, char* argv[]){
       // Create array of 'thetas' (Eccentricity range)
       double theta;
       double thetas[N];
-      double new_weight;
-      for (int idx = 0; idx < N; idx++){
-        theta = sims[idx]->merc_ecc_max - sims[idx]->merc_ecc_min;
-
-        new_weight = 
-
-        thetas[idx] = theta;
-
-      }
-
-      /* Sorted stratified resampling goes here: */
+      double new_weights[N];
 
       // Sum total weights
-      sum_weights = 0.;
+      total_sum_weights = 0.;
       for (int idx = 0; idx < N; idx++){
         total_sum_weights += sims[idx]->sim_weight;
       }
+      avg_weight = total_sum_weights/N;
+
+      for (int idx = 0; idx < N; idx++){
+        theta = sims[idx]->merc_ecc_max - sims[idx]->merc_ecc_min;
+
+        new_weights[idx] = avg_weight*exp(theta - sims[idx]->prev_V);     // eq (5)
+
+        sims[idx]->prev_V = theta;
+        thetas[idx] = theta;
+      }
+
+      for (int idx = 0; idx < N; idx++){
+        sims[idx]->sim_weight = new_weights[idx];
+      }
+
+      /* Sorted stratified resampling goes here: */
 
       // Sort sims into increasing thetas
       sort_sims(thetas, sims, N);
@@ -273,8 +281,6 @@ int main(int argc, char* argv[]){
         sims[idx]->merc_ecc_max = merc_orb.e;
       }
     }
-
-
 
     // Free simulations ========================================================
     for (int i = 0; i < N; i++){
