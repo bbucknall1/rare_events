@@ -13,9 +13,9 @@
  *    x **NO LONGER NEEDED** Arrays for ecc max and min
  *    x Update eccentricities at each heartbeat call?
  *    x **NO LONGER NEEDED** Array for particle weights
- *    o REWEIGHTING
- *    o Implement sorted stratified resampling method
- *    o Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity range
+ *    x REWEIGHTING
+ *    x Implement sorted stratified resampling method
+ *    o Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity range or constant multiple?
  *
  *
  *    UNITS:
@@ -149,7 +149,6 @@ void heartbeat(struct reb_simulation* r){
         struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[1], r->particles[0]);
         if (merc_orb.e > r->merc_ecc_max){
           r->merc_ecc_max = merc_orb.e;
-          printf("\nNew max ecc: %f\n", r->merc_ecc_max);
         }
         if (merc_orb.e < r->merc_ecc_min){
           r->merc_ecc_min = merc_orb.e;
@@ -225,7 +224,7 @@ int main(int argc, char* argv[]){
     for (int i = 0; i < 5; i++){                  // i is resampling iteration
       // ======================== Integrate simulations ========================
       for (int idx = 0; idx < N; idx++){
-        printf("\nIntegrating simulation %d until resampling time %f\n", idx+1, times[i]);
+        printf("\nIntegrating simulation %d until resampling time %d\n", idx+1, i+1);
         reb_integrate(sims[idx], times[i]);
       }
       printf("\nAll simulations are now at time %f\n", times[i]);
@@ -234,6 +233,7 @@ int main(int argc, char* argv[]){
       // Create array of 'thetas' (Eccentricity range)
       double theta;
       double thetas[N];
+      double new_V;
       double new_weights[N];
 
       // Sum total weights
@@ -245,17 +245,15 @@ int main(int argc, char* argv[]){
 
       for (int idx = 0; idx < N; idx++){
         theta = sims[idx]->merc_ecc_max - sims[idx]->merc_ecc_min;
-
-        new_weights[idx] = avg_weight*exp(theta - sims[idx]->prev_V);     // eq (5)
-
-        sims[idx]->prev_V = theta;
+        new_V = 2*theta;
+        new_weights[idx] = avg_weight*exp(new_V - sims[idx]->prev_V);     // eq (5)
+        sims[idx]->prev_V = new_V;
         thetas[idx] = theta;
         printf("Simulation %d had max and min eccentricity of (%f, %f), so theta = %f\n", idx, sims[idx]->merc_ecc_max, sims[idx]->merc_ecc_min, theta);
       }
 
       for (int idx = 0; idx < N; idx++){
         sims[idx]->sim_weight = new_weights[idx];
-        printf("Simulation %d has current Mercury eccentricity %f\n", idx, reb_tools_particle_to_orbit(sims[idx]->G, sims[idx]->particles[1], sims[idx]->particles[0]).e);
       }
 
       // =========================== 2b: Resampling ============================
@@ -266,8 +264,17 @@ int main(int argc, char* argv[]){
       // Relabel simulations based on their new ordering
       for (int idx = 0; idx < N; idx++){
         sims[idx]->sim_id = idx;
+        printf("(After sorting) Sim %d now has theta %f and weight %f\n", idx, thetas[idx], sims[idx]->sim_weight);
       }
 
+      // Sum total weights
+      total_sum_weights = 0.;
+      for (int idx = 0; idx < N; idx++){
+        total_sum_weights += sims[idx]->sim_weight;
+      }
+      avg_weight = total_sum_weights/N;
+
+      // Find bounds for sorted stratified resampling
       partial_sum_weights = 0.;
       for (int idx = 0; idx < N-1; idx++){
         partial_sum_weights += sims[idx]->sim_weight;
@@ -275,6 +282,11 @@ int main(int argc, char* argv[]){
         printf("Resampling bound %d is %f\n", idx+1, resampling_bnds[idx]);
       }
 
+      // Select and copy new simulations
+      for (int j = 0; j < N; j++){
+        double Qarg = ((double) j + ((double) rand()/(double) RAND_MAX))/((double) N);
+        printf("j = %d\tQarg = %f\n", j, Qarg);
+      }
 
       // Then reset max and min eccentricites to current
       for (int idx = 0; idx < N; idx++){
