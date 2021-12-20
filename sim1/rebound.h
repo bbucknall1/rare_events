@@ -458,7 +458,6 @@ struct reb_simulation {
     double  merc_ecc_max;
     double  merc_ecc_min;
     double  sim_weight;
-    double  prev_weight;
     double  prev_V;
     // End additions
 

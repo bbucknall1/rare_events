@@ -17,8 +17,9 @@
  *    x Implement sorted stratified resampling method
  *    x Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity range or constant multiple?
  *        can't copy simulations in place!!!!
- *    o Copy rebx to copied simulations
- *    o Manually copy new simulation parameters (weights, etc...)
+ *    x Copy rebx to copied simulations
+ *    x Manually copy new simulation parameters (weights, etc...)
+ *    o Add collision detection
  *
  *    UNITS:
  *        distance: Astronomical Unit
@@ -215,6 +216,7 @@ int main(int argc, char* argv[]){
       // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
       rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);
     }
+    printf("============ Starting simulations ============");
 
     // Integrate simulations ===================================================
     double times[5] = {1e6*2*M_PI, 2e6*2*M_PI, 3e6*2*M_PI, 4e6*2*M_PI, 5e6*2*M_PI};
@@ -226,7 +228,7 @@ int main(int argc, char* argv[]){
     for (int i = 0; i < 5; i++){                  // i is resampling iteration
       // ======================== Integrate simulations ========================
       for (int idx = 0; idx < N; idx++){
-        printf("\nIntegrating simulation %d until resampling time %d\n", idx+1, i+1);
+        printf("\n\nIntegrating simulation %d until resampling time %d\n", idx+1, i+1);
         reb_integrate(sims[idx], times[i]);
       }
       printf("\nAll simulations are now at time %f\n", times[i]);
@@ -247,7 +249,7 @@ int main(int argc, char* argv[]){
 
       for (int idx = 0; idx < N; idx++){
         theta = sims[idx]->merc_ecc_max - sims[idx]->merc_ecc_min;
-        new_V = 2*theta;
+        new_V = 20*theta;
         new_weights[idx] = avg_weight*exp(new_V - sims[idx]->prev_V);     // eq (5)
         sims[idx]->prev_V = new_V;
         thetas[idx] = theta;
@@ -297,6 +299,9 @@ int main(int argc, char* argv[]){
             sims_temp[j] = reb_copy_simulation(sims[idx]);
             // Reset function pointers
             sims_temp[j]->heartbeat = heartbeat;
+            //sims_temp[j]->sim_id = sims[idx]->sim_id;
+            sims_temp[j]->sim_weight = sims[idx]->sim_weight;
+            sims_temp[j]->prev_V = sims[idx]->prev_V;
             printf("Simulation %d is now a copy of simulation %d\n", j, idx);
             break;
           }
@@ -306,9 +311,12 @@ int main(int argc, char* argv[]){
       // Then reset max and min eccentricites to current
       for (int idx = 0; idx < N; idx++){
         sims[idx] = reb_copy_simulation(sims_temp[idx]);
-        // Reset function pointers
+        // Reset function pointers and custom parameters
         sims[idx]->heartbeat = heartbeat;
-        /*
+        sims[idx]->sim_id = idx;
+        sims[idx]->sim_weight = sims_temp[idx]->sim_weight;
+        sims[idx]->prev_V = sims_temp[idx]->prev_V;
+
         // Reattach reboundx
         rebx[idx] = rebx_attach(sims[idx]);
         // Could also add "gr" or "gr_full" here.  See documentation for details.
@@ -316,7 +324,7 @@ int main(int argc, char* argv[]){
         rebx_add_force(rebx[idx], gr);
         // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
         rebx_set_param_double(rebx[idx], &gr->ap, "c", 10065.32);
-        */
+
         // Free temporary simulation
         reb_free_simulation(sims_temp[idx]);
 
