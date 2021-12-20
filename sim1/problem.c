@@ -15,8 +15,10 @@
  *    x **NO LONGER NEEDED** Array for particle weights
  *    x REWEIGHTING
  *    x Implement sorted stratified resampling method
- *    o Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity range or constant multiple?
- *
+ *    x Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity range or constant multiple?
+ *        can't copy simulations in place!!!!
+ *    o Copy rebx to copied simulations
+ *    o Manually copy new simulation parameters (weights, etc...)
  *
  *    UNITS:
  *        distance: Astronomical Unit
@@ -217,7 +219,7 @@ int main(int argc, char* argv[]){
     // Integrate simulations ===================================================
     double times[5] = {1e6*2*M_PI, 2e6*2*M_PI, 3e6*2*M_PI, 4e6*2*M_PI, 5e6*2*M_PI};
 
-    double resampling_bnds[N-1];
+    double resampling_bnds[N];
     double total_sum_weights;
     double partial_sum_weights;
 
@@ -281,19 +283,50 @@ int main(int argc, char* argv[]){
         resampling_bnds[idx] = partial_sum_weights/total_sum_weights;
         printf("Resampling bound %d is %f\n", idx+1, resampling_bnds[idx]);
       }
+      resampling_bnds[N-1] = 1.;
+      printf("Resampling bound %d is %f\n", N, resampling_bnds[N-1]);
 
-      // Select and copy new simulations
+      // ============================ Split & Kill =============================
+      struct reb_simulation** sims_temp = malloc(N*sizeof(struct reb_simulation*));
       for (int j = 0; j < N; j++){
         double Qarg = ((double) j + ((double) rand()/(double) RAND_MAX))/((double) N);
         printf("j = %d\tQarg = %f\n", j, Qarg);
+
+        for (int idx = 0; idx < N; idx++){
+          if (Qarg < resampling_bnds[idx]){
+            sims_temp[j] = reb_copy_simulation(sims[idx]);
+            // Reset function pointers
+            sims_temp[j]->heartbeat = heartbeat;
+            printf("Simulation %d is now a copy of simulation %d\n", j, idx);
+            break;
+          }
+        }
       }
 
       // Then reset max and min eccentricites to current
       for (int idx = 0; idx < N; idx++){
-        merc_orb = reb_tools_particle_to_orbit(sims[i]->G, sims[i]->particles[1], sims[i]->particles[0]);
+        sims[idx] = reb_copy_simulation(sims_temp[idx]);
+        // Reset function pointers
+        sims[idx]->heartbeat = heartbeat;
+        /*
+        // Reattach reboundx
+        rebx[idx] = rebx_attach(sims[idx]);
+        // Could also add "gr" or "gr_full" here.  See documentation for details.
+        struct rebx_force* gr = rebx_load_force(rebx[idx], "gr");
+        rebx_add_force(rebx[idx], gr);
+        // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
+        rebx_set_param_double(rebx[idx], &gr->ap, "c", 10065.32);
+        */
+        // Free temporary simulation
+        reb_free_simulation(sims_temp[idx]);
+
+        // Reset max and min eccentricies
+        merc_orb = reb_tools_particle_to_orbit(sims[idx]->G, sims[idx]->particles[1], sims[idx]->particles[0]);
         sims[idx]->merc_ecc_max = merc_orb.e;
-        sims[idx]->merc_ecc_max = merc_orb.e;
+        sims[idx]->merc_ecc_min = merc_orb.e;
       }
+
+      free(sims_temp);
     }
 
     // Free simulations ========================================================
