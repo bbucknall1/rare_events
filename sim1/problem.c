@@ -1,6 +1,7 @@
 /**
  * First attempt at building solar system model with Mercury perturbations at regular intervals
- * Now includes multi-simulations, and stopping at regular intervals for resampling (still to implement)
+
+ * Timings: 4 simulations to max time of 5e6 years took 1417s (user) (without collision detection)
 
  ******** REQUIRES MODIFIED rebound.h FILE WITH NEW SIMULATION PARAMETERS ********
 
@@ -19,7 +20,11 @@
  *        can't copy simulations in place!!!!
  *    x Copy rebx to copied simulations
  *    x Manually copy new simulation parameters (weights, etc...)
- *    o Add collision detection
+ *    o Add collision detection (make custom function?) - incl. Hill radius
+ *    o Output eccentricities to file?
+ *    o Find a way to make weights diverge more
+ *
+ *    o Tidy up and optimise DMC part of main()
  *
  *    UNITS:
  *        distance: Astronomical Unit
@@ -107,6 +112,9 @@ struct reb_simulation* init_sim(int sim_id){
     r->sim_id = sim_id;
     r->sim_weight = 1.;     // 1 = exp(0) .... eq (4)
     r->prev_V = 0.;
+
+    r->collision = REB_COLLISION_DIRECT;
+    r->collision_resolve = reb_collision_resolve_halt;
 
     r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
     //tmax              = 5e6*2*M_PI;            // 5 Myr
@@ -249,7 +257,7 @@ int main(int argc, char* argv[]){
 
       for (int idx = 0; idx < N; idx++){
         theta = sims[idx]->merc_ecc_max - sims[idx]->merc_ecc_min;
-        new_V = 20*theta;
+        new_V = 10*theta;
         new_weights[idx] = avg_weight*exp(new_V - sims[idx]->prev_V);     // eq (5)
         sims[idx]->prev_V = new_V;
         thetas[idx] = theta;
