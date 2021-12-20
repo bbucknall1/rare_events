@@ -2,6 +2,7 @@
  * First attempt at building solar system model with Mercury perturbations at regular intervals
 
  * Timings: 4 simulations to max time of 5e6 years took 1417s (user) (without collision detection)
+ * Collision detection doesn't seem to take too long
 
  ******** REQUIRES MODIFIED rebound.h FILE WITH NEW SIMULATION PARAMETERS ********
 
