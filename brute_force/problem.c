@@ -84,6 +84,13 @@ double gaussian(){
     return z;
 }
 
+double r_hill(struct reb_simulation* r, int planet_id){
+    struct reb_orbit o = reb_tools_particle_to_orbit(r->G, r->particles[planet_id], r->particles[0]);
+    double m_star   = r->particles[0].m;
+    double m_planet = r->particles[planet_id].m;
+    return o.a*(1.-o.e)*pow(m_planet/(3.*m_star), 1./3.);
+}
+
 struct reb_simulation* init_sim(int sim_id){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
@@ -108,12 +115,11 @@ struct reb_simulation* init_sim(int sim_id){
         p.x  = ss_pos[i][0];         p.y  = ss_pos[i][1];         p.z  = ss_pos[i][2];
         p.vx = ss_vel[i][0];         p.vy = ss_vel[i][1];         p.vz = ss_vel[i][2];
         p.m  = ss_mass[i];
+
+        if (idx >= 1){p.r = r_hill(r, idx);}
+
         reb_add(r, p);
     }
-
-    // Initial Gaussian perturbation to Mercury x-coord
-    struct reb_particle merc = r->particles[1];
-    merc.x += (0.38/AU)*gaussian();
 
     reb_move_to_com(r);
 
@@ -122,6 +128,10 @@ struct reb_simulation* init_sim(int sim_id){
 
 void heartbeat(struct reb_simulation* r){
     if (reb_output_check(r, 5e5*2*M_PI)){         // Perturb Mercury x-coord every 0.5 Myr
+      for (int idx = 1; idx < 10; idx++){
+        r->particles[idx].r = r_hill(r, idx);
+      }
+
       //double pert = 0.38*gaussian();
       double pert = 100*gaussian();
       r->particles[1].x += pert/AU;
@@ -131,6 +141,21 @@ void heartbeat(struct reb_simulation* r){
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
         reb_output_timing(r, tmax);
         reb_integrator_synchronize(r);
+
+        struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[1], r->particles[0]);
+        
+        char id_str[4];
+        sprintf(id_str, "%d", r->sim_id);
+
+        char filename[64];
+        sprintf(filename, "sim_%s_ecc_bf.csv", id_str);
+
+        FILE* fpt;
+        fpt = fopen(filename, "a");
+
+        fprintf(fpt, "%f, ", merc_orb.e);
+
+        fclose(fpt);
     }
 }
 

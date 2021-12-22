@@ -148,10 +148,6 @@ struct reb_simulation* init_sim(int sim_id){
         reb_add(r, p);
     }
 
-    // Initial Gaussian perturbation to Mercury x-coord
-    struct reb_particle merc = r->particles[1];
-    merc.x += (0.38/AU)*gaussian();
-
     reb_move_to_com(r);
 
     return r;
@@ -186,7 +182,7 @@ void heartbeat(struct reb_simulation* r){
         sprintf(id_str, "%d", r->sim_id);
 
         char filename[64];
-        sprintf(filename, "sim_%s_ecc.csv", id_str);
+        sprintf(filename, "sim_%s_ecc_dmc.csv", id_str);
 
         FILE* fpt;
         fpt = fopen(filename, "a");
