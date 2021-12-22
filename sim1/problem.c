@@ -21,11 +21,13 @@
  *        can't copy simulations in place!!!!
  *    x Copy rebx to copied simulations
  *    x Manually copy new simulation parameters (weights, etc...)
- *    o Add collision detection (make custom function?) - incl. Hill radius
- *    o Output eccentricities to file?
+ *    x Hill radii
+ *    o Custon collision detection function that outputs to file?
+ *    x Output eccentricities to file?
  *    o Find a way to make weights diverge more
  *
  *    o Tidy up and optimise DMC part of main()
+ *    o Make sim indexing consistent (start at 0 or 1)
  *
  *    UNITS:
  *        distance: Astronomical Unit
@@ -107,6 +109,13 @@ double gaussian(){
     return z;
 }
 
+double r_hill(struct reb_simulation* r, int planet_id){
+    struct reb_orbit o = reb_tools_particle_to_orbit(r->G, r->particles[planet_id], r->particles[0]);
+    double m_star   = r->particles[0].m;
+    double m_planet = r->particles[planet_id].m;
+    return o.a*(1.-o.e)*pow(m_planet/(3.*m_star), 1./3.);
+}
+
 struct reb_simulation* init_sim(int sim_id){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
@@ -128,11 +137,14 @@ struct reb_simulation* init_sim(int sim_id){
     //r->integrator        = REB_INTEGRATOR_IAS15;        // Alternative non-symplectic integrator
 
     // Initial conditions
-    for (int i=0;i<10;i++){
+    for (int idx = 0; idx < 10; idx++){
         struct reb_particle p = {0};
-        p.x  = ss_pos[i][0];         p.y  = ss_pos[i][1];         p.z  = ss_pos[i][2];
-        p.vx = ss_vel[i][0];         p.vy = ss_vel[i][1];         p.vz = ss_vel[i][2];
-        p.m  = ss_mass[i];
+        p.x  = ss_pos[idx][0];         p.y  = ss_pos[idx][1];         p.z  = ss_pos[idx][2];
+        p.vx = ss_vel[idx][0];         p.vy = ss_vel[idx][1];         p.vz = ss_vel[idx][2];
+        p.m  = ss_mass[idx];
+
+        if (idx >= 1){p.r = r_hill(r, idx);}
+
         reb_add(r, p);
     }
 
@@ -146,7 +158,11 @@ struct reb_simulation* init_sim(int sim_id){
 }
 
 void heartbeat(struct reb_simulation* r){
-    if (reb_output_check(r, 5e5*2*M_PI)){         // Perturb Mercury x-coord every 0.5 Myr
+    if (reb_output_check(r, 5e5*2*M_PI)){         // Update Hill radii and perturb Mercury x-coord every 0.5 Myr
+      for (int idx = 1; idx < 10; idx++){
+        r->particles[idx].r = r_hill(r, idx);
+      }
+
       //double pert = 0.38*gaussian();
       double pert = 100*gaussian();
       r->particles[1].x += pert/AU;
@@ -165,6 +181,19 @@ void heartbeat(struct reb_simulation* r){
         if (merc_orb.e < r->merc_ecc_min){
           r->merc_ecc_min = merc_orb.e;
         }
+
+        char id_str[4];
+        sprintf(id_str, "%d", r->sim_id);
+
+        char filename[64];
+        sprintf(filename, "sim_%s_ecc.csv", id_str);
+
+        FILE* fpt;
+        fpt = fopen(filename, "a");
+
+        fprintf(fpt, "%f, ", merc_orb.e);
+
+        fclose(fpt);
     }
 }
 
