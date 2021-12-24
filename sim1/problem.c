@@ -22,7 +22,7 @@
  *    x Copy rebx to copied simulations
  *    x Manually copy new simulation parameters (weights, etc...)
  *    x Hill radii
- *    o Custon collision detection function that outputs to file?
+ *    o Custom collision detection function that outputs to file?
  *    x Output eccentricities to file?
  *    o Find a way to make weights diverge more
  *
@@ -116,6 +116,27 @@ double r_hill(struct reb_simulation* r, int planet_id){
     return o.a*(1.-o.e)*pow(m_planet/(3.*m_star), 1./3.);
 }
 
+int collision_resolve_halt_print(struct reb_simulation* const r, struct reb_collision c){
+    printf("Collision occurred in simulation %d!\tHalting!\n", r->sim_id);
+
+    char id_str[4];
+    sprintf(id_str, "%d", r->sim_id);
+
+    char filename[64];
+    sprintf(filename, "sim_%s_ecc_dmc.csv", id_str);
+
+    FILE* fpt;
+    fpt = fopen(filename, "a");
+
+    fprintf(fpt, "Collision occurred between planets %d and %d. Halting\n", c.p1, c.p2);
+
+    fclose(fpt);
+
+    r->sim_weight = 0.;
+    r->status = REB_EXIT_COLLISION;
+    return 0;
+}
+
 struct reb_simulation* init_sim(int sim_id){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
@@ -124,7 +145,7 @@ struct reb_simulation* init_sim(int sim_id){
     r->prev_V = 0.;
 
     r->collision = REB_COLLISION_DIRECT;
-    r->collision_resolve = reb_collision_resolve_halt;
+    r->collision_resolve = collision_resolve_halt_print;
 
     r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
     //tmax              = 5e6*2*M_PI;            // 5 Myr
@@ -137,16 +158,41 @@ struct reb_simulation* init_sim(int sim_id){
     //r->integrator        = REB_INTEGRATOR_IAS15;        // Alternative non-symplectic integrator
 
     // Initial conditions
-    for (int idx = 0; idx < 10; idx++){
-        struct reb_particle p = {0};
-        p.x  = ss_pos[idx][0];         p.y  = ss_pos[idx][1];         p.z  = ss_pos[idx][2];
-        p.vx = ss_vel[idx][0];         p.vy = ss_vel[idx][1];         p.vz = ss_vel[idx][2];
-        p.m  = ss_mass[idx];
+    /*
+    if (sim_id == 3){
+      struct reb_particle star = {0};
+      star.m = 1;
+      star.r = 0;                            // Star is pointmass
+      reb_add(r, star);
 
-        if (idx >= 1){p.r = r_hill(r, idx);}
+      // Add planets
+      int N_planets = 7;
+      for (int i=0; i<N_planets; i++){
+          double a = 1.+(double)i/(double)(N_planets-1);        // semi major axis
+          double v = sqrt(1./a);                     // velocity (circular orbit)
+          struct reb_particle planet = {0};
+          planet.m = 1e-4;
+          double rhill = a * pow(planet.m/(3.*star.m),1./3.);    // Hill radius
+          planet.r = rhill;                    // Set planet radius to hill radius
+                                      // A collision is recorded when planets get within their hill radius
+                                      // The hill radius of the particles might change, so it should be recalculated after a while
+          planet.lastcollision = 0;
+          planet.x = a;
+          planet.vy = v;
+          reb_add(r, planet);
+      }
+    } else {*/
+      for (int idx = 0; idx < 10; idx++){
+          struct reb_particle p = {0};
+          p.x  = ss_pos[idx][0];         p.y  = ss_pos[idx][1];         p.z  = ss_pos[idx][2];
+          p.vx = ss_vel[idx][0];         p.vy = ss_vel[idx][1];         p.vz = ss_vel[idx][2];
+          p.m  = ss_mass[idx];
 
-        reb_add(r, p);
-    }
+          if (idx >= 1){p.r = r_hill(r, idx);}
+
+          reb_add(r, p);
+      }
+    //}
 
     reb_move_to_com(r);
 
@@ -177,7 +223,10 @@ void heartbeat(struct reb_simulation* r){
         if (merc_orb.e < r->merc_ecc_min){
           r->merc_ecc_min = merc_orb.e;
         }
+    }
 
+    if (reb_output_check(r, 50000.)){
+        struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[1], r->particles[0]);
         char id_str[4];
         sprintf(id_str, "%d", r->sim_id);
 
@@ -262,8 +311,10 @@ int main(int argc, char* argv[]){
     for (int i = 0; i < 5; i++){                  // i is resampling iteration
       // ======================== Integrate simulations ========================
       for (int idx = 0; idx < N; idx++){
-        printf("\n\nIntegrating simulation %d until resampling time %d\n", idx+1, i+1);
-        reb_integrate(sims[idx], times[i]);
+        if (sims[idx]->status != REB_EXIT_COLLISION){
+          printf("\n\nIntegrating simulation %d until resampling time %d\n", sims[idx]->sim_id + 1, i+1);
+          reb_integrate(sims[idx], times[i]);
+        }
       }
       printf("\nAll simulations are now at time %f\n", times[i]);
 
@@ -287,7 +338,7 @@ int main(int argc, char* argv[]){
         new_weights[idx] = avg_weight*exp(new_V - sims[idx]->prev_V);     // eq (5)
         sims[idx]->prev_V = new_V;
         thetas[idx] = theta;
-        printf("Simulation %d had max and min eccentricity of (%f, %f), so theta = %f\n", idx, sims[idx]->merc_ecc_max, sims[idx]->merc_ecc_min, theta);
+        printf("Simulation %d had max and min eccentricity of (%f, %f), so theta = %f\n", sims[idx]->sim_id+1, sims[idx]->merc_ecc_max, sims[idx]->merc_ecc_min, theta);
       }
 
       for (int idx = 0; idx < N; idx++){
@@ -301,8 +352,8 @@ int main(int argc, char* argv[]){
 
       // Relabel simulations based on their new ordering
       for (int idx = 0; idx < N; idx++){
-        sims[idx]->sim_id = idx;
-        printf("(After sorting) Sim %d now has theta %f and weight %f\n", idx, thetas[idx], sims[idx]->sim_weight);
+        //sims[idx]->sim_id = idx;
+        printf("(After sorting) Sim %d now has theta %f and weight %f\n", sims[idx]->sim_id, thetas[idx], sims[idx]->sim_weight);
       }
 
       // Sum total weights
@@ -336,7 +387,7 @@ int main(int argc, char* argv[]){
             //sims_temp[j]->sim_id = sims[idx]->sim_id;
             sims_temp[j]->sim_weight = sims[idx]->sim_weight;
             sims_temp[j]->prev_V = sims[idx]->prev_V;
-            printf("Simulation %d is now a copy of simulation %d\n", j, idx);
+            printf("Simulation %d is now a copy of simulation %d\n", sims[j]->sim_id, idx);
             break;
           }
         }
@@ -347,7 +398,7 @@ int main(int argc, char* argv[]){
         sims[idx] = reb_copy_simulation(sims_temp[idx]);
         // Reset function pointers and custom parameters
         sims[idx]->heartbeat = heartbeat;
-        sims[idx]->sim_id = idx;
+        //sims[idx]->sim_id = idx;                // sim_id keeps track of starting id.
         sims[idx]->sim_weight = sims_temp[idx]->sim_weight;
         sims[idx]->prev_V = sims_temp[idx]->prev_V;
 
