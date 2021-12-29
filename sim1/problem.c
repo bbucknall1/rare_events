@@ -22,7 +22,7 @@
  *    x Copy rebx to copied simulations
  *    x Manually copy new simulation parameters (weights, etc...)
  *    x Hill radii
- *    o Custom collision detection function that outputs to file?
+ *    x Custom collision detection function that outputs to file?
  *    x Output eccentricities to file?
  *    o Find a way to make weights diverge more
  *
