@@ -150,6 +150,7 @@ struct reb_simulation* init_sim(int sim_id){
     r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
     r->ri_whfast.safe_mode     = 0;        // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
     r->ri_whfast.corrector     = 11;        // 11th order symplectic corrector
+    r->ri_whfast.coordinates = REB_WHFAST_COORDINATES_WHDS;
     r->integrator        = REB_INTEGRATOR_WHFAST;
     r->heartbeat        = heartbeat;
     r->exact_finish_time = 1; // Finish exactly at tmax in reb_integrate(). Default is already 1.
