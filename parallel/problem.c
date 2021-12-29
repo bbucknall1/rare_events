@@ -1,8 +1,5 @@
 /**
- * First attempt at building solar system model with Mercury perturbations at regular intervals
-
- * Timings: 4 simulations to max time of 5e6 years took 1417s (user) (without collision detection)
- * Collision detection doesn't seem to take too long
+ * Parallel implementation using OpenMP
 
  ******** REQUIRES MODIFIED rebound.h FILE WITH NEW SIMULATION PARAMETERS ********
 
@@ -39,6 +36,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <omp.h>
 #include "rebound.h"
 #include "reboundx.h"
 

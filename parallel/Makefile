@@ -1,5 +1,11 @@
 export OPENGL=0
 
+ifeq ($(shell $(CC) -v 2>&1 | grep -c "clang"), 1)
+export OPENMPCLANG=1
+else
+export OPENMP=1
+endif
+
 ifndef REB_DIR
 ifneq ($(wildcard ../../rebound/.*),) # Check for REBOUND in default location
 REB_DIR=../../rebound
