@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
-//#include <omp.h>
+#include <omp.h>
 #include "rebound.h"
 #include "reboundx.h"
 
@@ -150,38 +150,12 @@ struct reb_simulation* init_sim(int sim_id){
     r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
     r->ri_whfast.safe_mode     = 0;        // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
     r->ri_whfast.corrector     = 11;        // 11th order symplectic corrector
-    //r->ri_whfast.coordinates = REB_WHFAST_COORDINATES_WHDS;
     r->integrator        = REB_INTEGRATOR_WHFAST;
-    //r->integrator    = REB_INTEGRATOR_LEAPFROG;
     r->heartbeat        = heartbeat;
     r->exact_finish_time = 1; // Finish exactly at tmax in reb_integrate(). Default is already 1.
     //r->integrator        = REB_INTEGRATOR_IAS15;        // Alternative non-symplectic integrator
 
     // Initial conditions
-    /*
-    if (sim_id == 3){
-      struct reb_particle star = {0};
-      star.m = 1;
-      star.r = 0;                            // Star is pointmass
-      reb_add(r, star);
-
-      // Add planets
-      int N_planets = 7;
-      for (int i=0; i<N_planets; i++){
-          double a = 1.+(double)i/(double)(N_planets-1);        // semi major axis
-          double v = sqrt(1./a);                     // velocity (circular orbit)
-          struct reb_particle planet = {0};
-          planet.m = 1e-4;
-          double rhill = a * pow(planet.m/(3.*star.m),1./3.);    // Hill radius
-          planet.r = rhill;                    // Set planet radius to hill radius
-                                      // A collision is recorded when planets get within their hill radius
-                                      // The hill radius of the particles might change, so it should be recalculated after a while
-          planet.lastcollision = 0;
-          planet.x = a;
-          planet.vy = v;
-          reb_add(r, planet);
-      }
-    } else {*/
       for (int idx = 0; idx < 10; idx++){
           struct reb_particle p = {0};
           p.x  = ss_pos[idx][0];         p.y  = ss_pos[idx][1];         p.z  = ss_pos[idx][2];
@@ -192,7 +166,6 @@ struct reb_simulation* init_sim(int sim_id){
 
           reb_add(r, p);
       }
-    //}
 
     reb_move_to_com(r);
 
