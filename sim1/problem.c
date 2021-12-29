@@ -158,41 +158,16 @@ struct reb_simulation* init_sim(int sim_id){
     //r->integrator        = REB_INTEGRATOR_IAS15;        // Alternative non-symplectic integrator
 
     // Initial conditions
-    /*
-    if (sim_id == 3){
-      struct reb_particle star = {0};
-      star.m = 1;
-      star.r = 0;                            // Star is pointmass
-      reb_add(r, star);
+    for (int idx = 0; idx < 10; idx++){
+        struct reb_particle p = {0};
+        p.x  = ss_pos[idx][0];         p.y  = ss_pos[idx][1];         p.z  = ss_pos[idx][2];
+        p.vx = ss_vel[idx][0];         p.vy = ss_vel[idx][1];         p.vz = ss_vel[idx][2];
+        p.m  = ss_mass[idx];
 
-      // Add planets
-      int N_planets = 7;
-      for (int i=0; i<N_planets; i++){
-          double a = 1.+(double)i/(double)(N_planets-1);        // semi major axis
-          double v = sqrt(1./a);                     // velocity (circular orbit)
-          struct reb_particle planet = {0};
-          planet.m = 1e-4;
-          double rhill = a * pow(planet.m/(3.*star.m),1./3.);    // Hill radius
-          planet.r = rhill;                    // Set planet radius to hill radius
-                                      // A collision is recorded when planets get within their hill radius
-                                      // The hill radius of the particles might change, so it should be recalculated after a while
-          planet.lastcollision = 0;
-          planet.x = a;
-          planet.vy = v;
-          reb_add(r, planet);
-      }
-    } else {*/
-      for (int idx = 0; idx < 10; idx++){
-          struct reb_particle p = {0};
-          p.x  = ss_pos[idx][0];         p.y  = ss_pos[idx][1];         p.z  = ss_pos[idx][2];
-          p.vx = ss_vel[idx][0];         p.vy = ss_vel[idx][1];         p.vz = ss_vel[idx][2];
-          p.m  = ss_mass[idx];
+        if (idx >= 1){p.r = r_hill(r, idx);}
 
-          if (idx >= 1){p.r = r_hill(r, idx);}
-
-          reb_add(r, p);
-      }
-    //}
+        reb_add(r, p);
+    }
 
     reb_move_to_com(r);
 
