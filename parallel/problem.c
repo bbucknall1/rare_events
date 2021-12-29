@@ -185,7 +185,7 @@ void heartbeat(struct reb_simulation* r){
     }
 
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
-        reb_output_timing(r, tmax);
+        //reb_output_timing(r, tmax);
         reb_integrator_synchronize(r);
 
         // Update max and min eccentricities
@@ -283,9 +283,12 @@ int main(int argc, char* argv[]){
 
     for (int i = 0; i < 5; i++){                  // i is resampling iteration
       // ======================== Integrate simulations ========================
-      for (int idx = 0; idx < N; idx++){
+#pragam omp parallel num_threads(8)
+#pragma omp for
+      for (int idx = 0; idx < N; idx++){            // loop over simulations
         if (sims[idx]->status != REB_EXIT_COLLISION){
-          printf("\n\nIntegrating simulation %d until resampling time %d\n", sims[idx]->sim_id + 1, i+1);
+          int thread_id = omp_get_thread_num();
+          printf("\n\nIntegrating simulation %d on thread %d until resampling time %d\n", sims[idx]->sim_id + 1, thread_id, i+1);
           reb_integrate(sims[idx], times[i]);
         }
       }
