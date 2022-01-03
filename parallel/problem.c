@@ -284,7 +284,9 @@ int main(int argc, char* argv[]){
     for (int i = 0; i < 5; i++){                  // i is resampling iteration
       // ======================== Integrate simulations ========================
 #pragma omp parallel num_threads(8)
+{
 #pragma omp for
+{
       for (int idx = 0; idx < N; idx++){            // loop over simulations
         if (sims[idx]->status != REB_EXIT_COLLISION){
           int thread_id = omp_get_thread_num();
@@ -292,6 +294,8 @@ int main(int argc, char* argv[]){
           reb_integrate(sims[idx], times[i]);
         }
       }
+}
+}
       printf("\nAll simulations are now at time %f\n", times[i]);
 
       // =========================== 2a: Reweighting ===========================
