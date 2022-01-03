@@ -362,7 +362,7 @@ int main(int argc, char* argv[]){
             sims_temp[j] = reb_copy_simulation(sims[idx]);
             // Reset function pointers
             sims_temp[j]->heartbeat = heartbeat;
-            //sims_temp[j]->sim_id = sims[idx]->sim_id;
+            sims_temp[j]->sim_id = j
             sims_temp[j]->sim_weight = sims[idx]->sim_weight;
             sims_temp[j]->prev_V = sims[idx]->prev_V;
             printf("Simulation %d is now a copy of simulation %d\n", sims[j]->sim_id, idx);
@@ -376,7 +376,7 @@ int main(int argc, char* argv[]){
         sims[idx] = reb_copy_simulation(sims_temp[idx]);
         // Reset function pointers and custom parameters
         sims[idx]->heartbeat = heartbeat;
-        //sims[idx]->sim_id = idx;                // sim_id keeps track of starting id.
+        sims[idx]->sim_id = sims_temp[idx]->sim_id;                // sim_id keeps track of starting id.
         sims[idx]->sim_weight = sims_temp[idx]->sim_weight;
         sims[idx]->prev_V = sims_temp[idx]->prev_V;
 

@@ -175,7 +175,7 @@ struct reb_simulation* init_sim(int sim_id){
 }
 
 void heartbeat(struct reb_simulation* r){
-    if (reb_output_check(r, 1e7*2*M_PI)){         // Update Hill radii and perturb Mercury x-coord every 10 Myr
+    if (reb_output_check(r, 1e5*2*M_PI)){         // Update Hill radii and perturb Mercury x-coord every 10 Myr
       for (int idx = 1; idx < 10; idx++){
         r->particles[idx].r = r_hill(r, idx);
       }
@@ -277,7 +277,7 @@ int main(int argc, char* argv[]){
     printf("============ Starting simulations ============");
 
     // Integrate simulations ===================================================
-    double times[5] = {2e8*2*M_PI, 4e8*2*M_PI, 6e8*2*M_PI, 8e8*2*M_PI, 10e8*2*M_PI};     // Max time 1Gyr
+    double times[5] = {2e5*2*M_PI, 4e5*2*M_PI, 6e8*2*M_PI, 8e8*2*M_PI, 10e8*2*M_PI};     // Max time 1Gyr
 
     double resampling_bnds[N];
     double total_sum_weights;
@@ -288,7 +288,8 @@ int main(int argc, char* argv[]){
       for (int idx = 0; idx < N; idx++){
         if (sims[idx]->status != REB_EXIT_COLLISION){
           printf("\n\nIntegrating simulation %d until resampling time %d\n", sims[idx]->sim_id + 1, i+1);
-          reb_integrate(sims[idx], times[i]);
+          printf("idx = %d\n", idx);
+	  reb_integrate(sims[idx], times[i]);
         }
       }
       printf("\nAll simulations are now at time %f\n", times[i]);
@@ -359,7 +360,7 @@ int main(int argc, char* argv[]){
             sims_temp[j] = reb_copy_simulation(sims[idx]);
             // Reset function pointers
             sims_temp[j]->heartbeat = heartbeat;
-            //sims_temp[j]->sim_id = sims[idx]->sim_id;
+            sims_temp[j]->sim_id = j;
             sims_temp[j]->sim_weight = sims[idx]->sim_weight;
             sims_temp[j]->prev_V = sims[idx]->prev_V;
             printf("Simulation %d is now a copy of simulation %d\n", sims[j]->sim_id, idx);
@@ -373,7 +374,7 @@ int main(int argc, char* argv[]){
         sims[idx] = reb_copy_simulation(sims_temp[idx]);
         // Reset function pointers and custom parameters
         sims[idx]->heartbeat = heartbeat;
-        //sims[idx]->sim_id = idx;                // sim_id keeps track of starting id.
+        sims[idx]->sim_id = sims_temp[idx]->sim_id;                // sim_id keeps track of starting id.
         sims[idx]->sim_weight = sims_temp[idx]->sim_weight;
         sims[idx]->prev_V = sims_temp[idx]->prev_V;
 
