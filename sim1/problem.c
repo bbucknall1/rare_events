@@ -288,8 +288,7 @@ int main(int argc, char* argv[]){
       for (int idx = 0; idx < N; idx++){
         if (sims[idx]->status != REB_EXIT_COLLISION){
           printf("\n\nIntegrating simulation %d until resampling time %d\n", sims[idx]->sim_id + 1, i+1);
-          printf("idx = %d\n", idx);
-	  reb_integrate(sims[idx], times[i]);
+	        reb_integrate(sims[idx], times[i]);
         }
       }
       printf("\nAll simulations are now at time %f\n", times[i]);
