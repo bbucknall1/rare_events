@@ -173,7 +173,7 @@ struct reb_simulation* init_sim(int sim_id){
 }
 
 void heartbeat(struct reb_simulation* r){
-    if (reb_output_check(r, 1e7*2*M_PI)){         // Update Hill radii and perturb Mercury x-coord every 10 Myr
+    if (reb_output_check(r, 5e5*2*M_PI)){        // TEMP // Update Hill radii and perturb Mercury x-coord every 10 Myr
       for (int idx = 1; idx < 10; idx++){
         r->particles[idx].r = r_hill(r, idx);
       }
@@ -275,7 +275,7 @@ int main(int argc, char* argv[]){
     printf("============ Starting simulations ============");
 
     // Integrate simulations ===================================================
-    double times[5] = {2e8*2*M_PI, 4e8*2*M_PI, 6e8*2*M_PI, 8e8*2*M_PI, 10e8*2*M_PI};     // Max time 1Gyr
+    double times[5] = {1e6*2*M_PI, 4e8*2*M_PI, 6e8*2*M_PI, 8e8*2*M_PI, 10e8*2*M_PI};   // TEMP  // Max time 1Gyr
 
     double resampling_bnds[N];
     double total_sum_weights;
