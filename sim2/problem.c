@@ -45,49 +45,6 @@
 #define SOLAR_MASS 1.988544e30     // Solar Mass in kg
 #define AU 149597870700         // Astronomical Unit in m
 
-double ss_pos[10][3] =
-{
-    {-0.0071371792,  -0.0027959975,   0.0002062985},   // Sun
-    {-0.1372307845,  -0.4500836156,  -0.0243920085},   // Mercury
-    {-0.7254394755,  -0.0354503057,	  0.0412204805},   // Venus
-    {-0.1842959633,   0.9644233550,	  0.0002051592},   // Earth
-    { 1.3835787426,  -0.0162123156,	 -0.0342613643},   // Mars
-    { 3.9940399820,   2.9357801095,	 -0.1015789781},   // Jupiter
-    { 6.3992716804,   6.5671936194,	 -0.3688701277},   // Saturn
-    { 14.4247194352, -13.7371174663, -0.2379353893},   // Uranus
-    { 16.8049097889, -24.9945588868,  0.1274291784},   // Neptune
-    {-9.8824894091,	 -27.9615926237,  5.8506522150},   // Pluto
-};
-
-double ss_vel[10][3] =
-{
-    { 0.0003126630,	-0.0004305821, -0.0000054844},   // Sun
-    { 1.2423933957,	-0.3752679646, -0.1446310572},   // Mercury
-    { 0.0467091823,	-1.1802411832, -0.0188085105},   // Venus
-    {-0.9997460569,	-0.1843565013, -0.0000040752},   // Earth
-    { 0.0393485692,	 0.8824412195,  0.0175302689},   // Mars
-    {-0.2652545529,	 0.3741287103,  0.0043881376},   // Jupiter
-    {-0.2492122285,	 0.2257229652,  0.0059791254},   // Saturn
-    { 0.1559974780,	 0.1549397540, -0.0014455449},   // Uranus
-    { 0.1502521714,	 0.1028649997, -0.0055809444},   // Neptune
-    { 0.1763813425,	-0.0898258456, -0.0414075629},   // Pluto
-};
-
-double ss_mass[10] =            // Masses relative to Solar Mass
-{
-    1.,                         // Sun
-    3.302e23/SOLAR_MASS,        // Mercury
-    48.685e23/SOLAR_MASS,       // Venus
-    6.0477246e24/SOLAR_MASS,    // Earth
-    6.4185e23/SOLAR_MASS,       // Mars
-    1898.13e24/SOLAR_MASS,      // Jupiter
-    5.68319e26/SOLAR_MASS,      // Saturn
-    86.8103e24/SOLAR_MASS,      // Uranus
-    102.41e24/SOLAR_MASS,       // Neptune
-    1.4639248e22/SOLAR_MASS,    // Pluto
-};
-
-
 void heartbeat(struct reb_simulation* r);
 double tmax;
 
@@ -157,19 +114,6 @@ struct reb_simulation* init_sim(int sim_id){
     r->exact_finish_time = 1; // Finish exactly at tmax in reb_integrate(). Default is already 1.
     //r->integrator        = REB_INTEGRATOR_IAS15;        // Alternative non-symplectic integrator
 
-    /*
-    // Initial conditions - True Solar System
-    for (int idx = 0; idx < 10; idx++){
-        struct reb_particle p = {0};
-        p.x  = ss_pos[idx][0];         p.y  = ss_pos[idx][1];         p.z  = ss_pos[idx][2];
-        p.vx = ss_vel[idx][0];         p.vy = ss_vel[idx][1];         p.vz = ss_vel[idx][2];
-        p.m  = ss_mass[idx];
-
-        if (idx >= 1){p.r = r_hill(r, idx);}
-
-        reb_add(r, p);
-    }
-    */
     // Initial conditions - Model unstable system
     struct reb_particle star = {0};
     star.m = 1;
@@ -177,7 +121,7 @@ struct reb_simulation* init_sim(int sim_id){
     reb_add(r, star);
 
     for (int idx=0; idx<9; idx++){
-        double a = 1.+500.*(double)idx/(double)(8);        // semi major axis
+        double a = 1.+5e3*(double)idx/(double)(8);        // semi major axis
         double v = sqrt(1./a);                     // velocity (circular orbit)
         struct reb_particle planet = {0};
         planet.m = 1e-4;
@@ -196,19 +140,14 @@ struct reb_simulation* init_sim(int sim_id){
 }
 
 void heartbeat(struct reb_simulation* r){
-    if (reb_output_check(r, 1e5*2*M_PI)){         // Update Hill radii and perturb Mercury x-coord every 10 Myr
+    if (reb_output_check(r, 1e6*2*M_PI)){         // Update Hill radii and perturb Mercury x-coord every 10 Myr
       for (int idx = 1; idx < 10; idx++){
         r->particles[idx].r = r_hill(r, idx);
       }
 
-      /* For true Solar System
-      double pert = 100*gaussian();
-      r->particles[1].x += pert/AU;
-      printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
-      */
       double pert = gaussian();
-      r->particles[1].x += pert;
-      printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
+      r->particles[1].x += 0.5*pert;
+      printf("\nPerturbed Mercury's x-coordinate by %f m\n", 0.5*pert);
     }
 
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
@@ -250,15 +189,35 @@ void sort_sims(double* thetas, struct reb_simulation** sims, int N){
 
     for (int i = 1; i < N; i++){
       temp_theta = thetas[i];
-      temp_sim   = sims[i];
+      //temp_sim   = sims[i];
+      temp_sim = reb_copy_simulation(sims[i]);
+      // Reset function pointers and custom variables
+      temp_sim->heartbeat = heartbeat;
+      temp_sim->sim_id = sims[i]->sim_id;
+      temp_sim->sim_weight = sims[i]->sim_weight;
+      temp_sim->prev_V = sims[i]->prev_V;
+
       j = i - 1;
       while (j >= 0 && thetas[j] > temp_theta){
         thetas[j+1] = thetas[j];
-        sims[j+1]   = sims[j];
+        //sims[j+1]   = sims[j];
+        sims[j+1] = reb_copy_simulation(sims[j]);
+        // Reset function pointers and custom variables
+        sims[j+1]->heartbeat = heartbeat;
+        sims[j+1]->sim_id = sims[j]->sim_id;
+        sims[j+1]->sim_weight = sims[j]->sim_weight;
+        sims[j+1]->prev_V = sims[j]->prev_V;
+
         j--;
       }
       thetas[j+1] = temp_theta;
-      sims[j+1]   = temp_sim;
+      //sims[j+1]   = temp_sim;
+      sims[j+1] = reb_copy_simulation(temp_sim);
+      // Reset function pointers and custom variables
+      sims[j+1]->heartbeat = heartbeat;
+      sims[j+1]->sim_id = temp_sim->sim_id;
+      sims[j+1]->sim_weight = temp_sim->sim_weight;
+      sims[j+1]->prev_V = temp_sim->prev_V;
     }
 }
 
@@ -302,7 +261,7 @@ int main(int argc, char* argv[]){
     printf("============ Starting simulations ============");
 
     // Integrate simulations ===================================================
-    double times[5] = {2e5*2*M_PI, 4e5*2*M_PI, 6e8*2*M_PI, 8e8*2*M_PI, 10e8*2*M_PI};     // Max time 1Gyr
+    double times[5] = {2e6*2*M_PI, 4e6*2*M_PI, 6e6*2*M_PI, 8e6*2*M_PI, 10e6*2*M_PI};     // Max time 0.1Gyr
 
     double resampling_bnds[N];
     double total_sum_weights;
@@ -334,7 +293,7 @@ int main(int argc, char* argv[]){
 
       for (int idx = 0; idx < N; idx++){
         theta = sims[idx]->merc_ecc_max - sims[idx]->merc_ecc_min;
-        new_V = 10*theta;
+        new_V = theta;
         new_weights[idx] = avg_weight*exp(new_V - sims[idx]->prev_V);     // eq (5)
         sims[idx]->prev_V = new_V;
         thetas[idx] = theta;
@@ -382,7 +341,7 @@ int main(int argc, char* argv[]){
         for (int idx = 0; idx < N; idx++){
           if (Qarg < resampling_bnds[idx]){
             sims_temp[j] = reb_copy_simulation(sims[idx]);
-            // Reset function pointers
+            // Reset function pointers and custom variables
             sims_temp[j]->heartbeat = heartbeat;
             sims_temp[j]->sim_id = j;
             sims_temp[j]->sim_weight = sims[idx]->sim_weight;
