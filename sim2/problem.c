@@ -157,6 +157,7 @@ struct reb_simulation* init_sim(int sim_id){
     r->exact_finish_time = 1; // Finish exactly at tmax in reb_integrate(). Default is already 1.
     //r->integrator        = REB_INTEGRATOR_IAS15;        // Alternative non-symplectic integrator
 
+    /*
     // Initial conditions - True Solar System
     for (int idx = 0; idx < 10; idx++){
         struct reb_particle p = {0};
@@ -167,6 +168,26 @@ struct reb_simulation* init_sim(int sim_id){
         if (idx >= 1){p.r = r_hill(r, idx);}
 
         reb_add(r, p);
+    }
+    */
+    // Initial conditions - Model unstable system
+    struct reb_particle star = {0};
+    star.m = 1;
+    star.r = 0;                            // Star is pointmass
+    reb_add(r, star);
+
+    for (int idx=0; idx<9; idx++){
+        double a = 1.+500.*(double)idx/(double)(8);        // semi major axis
+        double v = sqrt(1./a);                     // velocity (circular orbit)
+        struct reb_particle planet = {0};
+        planet.m = 1e-4;
+        planet.r = r_hill(r, idx);                    // Set planet radius to hill radius
+                                    // A collision is recorded when planets get within their hill radius
+                                    // The hill radius of the particles might change, so it should be recalculated after a while
+        planet.lastcollision = 0;
+        planet.x = a;
+        planet.vy = v;
+        reb_add(r, planet);
     }
 
     reb_move_to_com(r);
@@ -180,8 +201,13 @@ void heartbeat(struct reb_simulation* r){
         r->particles[idx].r = r_hill(r, idx);
       }
 
+      /* For true Solar System
       double pert = 100*gaussian();
       r->particles[1].x += pert/AU;
+      printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
+      */
+      double pert = gaussian();
+      r->particles[1].x += pert;
       printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
 
