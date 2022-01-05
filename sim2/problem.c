@@ -271,7 +271,7 @@ int main(int argc, char* argv[]){
       // ======================== Integrate simulations ========================
       for (int idx = 0; idx < N; idx++){
         if (sims[idx]->status != REB_EXIT_COLLISION){
-          printf("\n\nIntegrating simulation %d until resampling time %d\n", sims[idx]->sim_id + 1, i+1);
+          printf("\n\nIntegrating simulation %d until resampling time %d\n", sims[idx]->sim_id, i+1);
 	        reb_integrate(sims[idx], times[i]);
         }
       }
@@ -297,7 +297,7 @@ int main(int argc, char* argv[]){
         new_weights[idx] = avg_weight*exp(new_V - sims[idx]->prev_V);     // eq (5)
         sims[idx]->prev_V = new_V;
         thetas[idx] = theta;
-        printf("Simulation %d had max and min eccentricity of (%f, %f), so theta = %f\n", sims[idx]->sim_id+1, sims[idx]->merc_ecc_max, sims[idx]->merc_ecc_min, theta);
+        printf("Simulation %d had max and min eccentricity of (%f, %f), so theta = %f\n", sims[idx]->sim_id, sims[idx]->merc_ecc_max, sims[idx]->merc_ecc_min, theta);
       }
 
       for (int idx = 0; idx < N; idx++){
@@ -341,12 +341,12 @@ int main(int argc, char* argv[]){
         for (int idx = 0; idx < N; idx++){
           if (Qarg < resampling_bnds[idx]){
             sims_temp[j] = reb_copy_simulation(sims[idx]);
-            // Reset function pointers and custom variables
+            // Reset function pointers and custom variables, but keep sim_id
             sims_temp[j]->heartbeat = heartbeat;
-            sims_temp[j]->sim_id = j;
+            sims_temp[j]->sim_id = sims[j]->sim_id;         // Change to sims[j]->sim_id?!?!?!?!?!
             sims_temp[j]->sim_weight = sims[idx]->sim_weight;
             sims_temp[j]->prev_V = sims[idx]->prev_V;
-            printf("Simulation %d is now a copy of simulation %d\n", sims[j]->sim_id, idx);
+            printf("Simulation %d is now a copy of simulation %d\n", sims[j]->sim_id, sims[idx]->sim_id);
             break;
           }
         }
