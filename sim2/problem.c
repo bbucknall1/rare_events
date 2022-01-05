@@ -27,7 +27,8 @@
  *    o Find a way to make weights diverge more
  *
  *    o Tidy up and optimise DMC part of main()
- *    o Make sim indexing consistent (start at 0 or 1)
+ *    x Make sim indexing consistent (now all starts at 0)
+ *    o Check paper for details on how to retreive unbiased probability - Am I using the right weight?
  *
  *    UNITS:
  *        distance: Astronomical Unit
@@ -243,7 +244,7 @@ int main(int argc, char* argv[]){
     struct reb_orbit merc_orb;
 
     for (int i = 0; i < N; i++){
-      printf("Initialising simulation %d\n", i+1);
+      printf("Initialising simulation %d\n", i);
       sims[i] = init_sim(i);
 
       // Get initial values of Mercury's eccentricity in each simulation
@@ -301,7 +302,9 @@ int main(int argc, char* argv[]){
       }
 
       for (int idx = 0; idx < N; idx++){
-        sims[idx]->sim_weight = new_weights[idx];
+        if (sims[idx]->status != REB_EXIT_COLLISION){
+          sims[idx]->sim_weight = new_weights[idx];
+        }
       }
 
       // =========================== 2b: Resampling ============================
@@ -383,7 +386,7 @@ int main(int argc, char* argv[]){
 
     // Free simulations ========================================================
     for (int i = 0; i < N; i++){
-      printf("\nFreeing simulation %d", i+1);
+      printf("\nFreeing simulation %d", i);
 
       rebx_free(rebx[i]);
       reb_free_simulation(sims[i]);
