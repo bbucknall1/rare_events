@@ -25,10 +25,12 @@
  *    x Custom collision detection function that outputs to file?
  *    x Output eccentricities to file?
  *    o Find a way to make weights diverge more
+ *    x Make sim indexing consistent (now all starts at 0)
  *
  *    o Tidy up and optimise DMC part of main()
- *    x Make sim indexing consistent (now all starts at 0)
+ *    o Edit copy_sim function to include custom parameters
  *    o Check paper for details on how to retreive unbiased probability - Am I using the right weight?
+ *    o In resampling: Selection of x-coordinate needs to exclude halted simulations
  *
  *    UNITS:
  *        distance: Astronomical Unit
@@ -86,11 +88,13 @@ int collision_resolve_halt_print(struct reb_simulation* const r, struct reb_coll
     FILE* fpt;
     fpt = fopen(filename, "a");
 
-    fprintf(fpt, "Collision occurred between planets %d and %d. Halting\n", c.p1, c.p2);
+    fprintf(fpt, "Collision occurred between planets %d and %d. Halting.\nSimulation had weight %f\n", c.p1, c.p2, r->sim_weight);
 
     fclose(fpt);
 
     r->sim_weight = 0.;
+    r->merc_ecc_max = 0.;
+    r->merc_ecc_min = 0.;
     r->status = REB_EXIT_COLLISION;
     return 0;
 }
@@ -346,7 +350,7 @@ int main(int argc, char* argv[]){
             sims_temp[j] = reb_copy_simulation(sims[idx]);
             // Reset function pointers and custom variables, but keep sim_id
             sims_temp[j]->heartbeat = heartbeat;
-            sims_temp[j]->sim_id = sims[j]->sim_id;         // Change to sims[j]->sim_id?!?!?!?!?!
+            sims_temp[j]->sim_id = sims[j]->sim_id;         // Retains starting id
             sims_temp[j]->sim_weight = sims[idx]->sim_weight;
             sims_temp[j]->prev_V = sims[idx]->prev_V;
             printf("Simulation %d is now a copy of simulation %d\n", sims[j]->sim_id, sims[idx]->sim_id);
@@ -357,21 +361,22 @@ int main(int argc, char* argv[]){
 
       // Then reset max and min eccentricites to current
       for (int idx = 0; idx < N; idx++){
-        sims[idx] = reb_copy_simulation(sims_temp[idx]);
-        // Reset function pointers and custom parameters
-        sims[idx]->heartbeat = heartbeat;
-        sims[idx]->sim_id = sims_temp[idx]->sim_id;                // sim_id keeps track of starting id.
-        sims[idx]->sim_weight = sims_temp[idx]->sim_weight;
-        sims[idx]->prev_V = sims_temp[idx]->prev_V;
+        if (sims[idx]->status != REB_EXIT_COLLISION){     // Only copy if not halted
+          sims[idx] = reb_copy_simulation(sims_temp[idx]);
+          // Reset function pointers and custom parameters
+          sims[idx]->heartbeat = heartbeat;
+          sims[idx]->sim_id = sims_temp[idx]->sim_id;                // sim_id keeps track of starting id.
+          sims[idx]->sim_weight = sims_temp[idx]->sim_weight;
+          sims[idx]->prev_V = sims_temp[idx]->prev_V;
 
-        // Reattach reboundx
-        rebx[idx] = rebx_attach(sims[idx]);
-        // Could also add "gr" or "gr_full" here.  See documentation for details.
-        struct rebx_force* gr = rebx_load_force(rebx[idx], "gr");
-        rebx_add_force(rebx[idx], gr);
-        // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
-        rebx_set_param_double(rebx[idx], &gr->ap, "c", 10065.32);
-
+          // Reattach reboundx
+          rebx[idx] = rebx_attach(sims[idx]);
+          // Could also add "gr" or "gr_full" here.  See documentation for details.
+          struct rebx_force* gr = rebx_load_force(rebx[idx], "gr");
+          rebx_add_force(rebx[idx], gr);
+          // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
+          rebx_set_param_double(rebx[idx], &gr->ap, "c", 10065.32);
+        }
         // Free temporary simulation
         reb_free_simulation(sims_temp[idx]);
 
