@@ -272,6 +272,8 @@ int main(int argc, char* argv[]){
     double total_sum_weights;
     double partial_sum_weights;
 
+    int num_halted;
+
     for (int i = 0; i < 5; i++){                  // i is resampling iteration
       // ======================== Integrate simulations ========================
       for (int idx = 0; idx < N; idx++){
@@ -305,9 +307,12 @@ int main(int argc, char* argv[]){
         printf("Simulation %d had max and min eccentricity of (%f, %f), so theta = %f\n", sims[idx]->sim_id, sims[idx]->merc_ecc_max, sims[idx]->merc_ecc_min, theta);
       }
 
+      num_halted = 0;
       for (int idx = 0; idx < N; idx++){
         if (sims[idx]->status != REB_EXIT_COLLISION){
           sims[idx]->sim_weight = new_weights[idx];
+        } else {
+          num_halted++;
         }
       }
 
@@ -341,8 +346,8 @@ int main(int argc, char* argv[]){
 
       // ============================ Split & Kill =============================
       struct reb_simulation** sims_temp = malloc(N*sizeof(struct reb_simulation*));
-      for (int j = 0; j < N; j++){
-        double Qarg = ((double) j + ((double) rand()/(double) RAND_MAX))/((double) N);
+      for (int j = num_halted; j < N; j++){   // Exclude halted sims (since they have theta = 0 they are at beginning of array after sorting)
+        double Qarg = ((double) (j-num_halted) + ((double) rand()/(double) RAND_MAX))/((double) N-num_halted);
         printf("j = %d\tQarg = %f\n", j, Qarg);
 
         for (int idx = 0; idx < N; idx++){
@@ -360,7 +365,7 @@ int main(int argc, char* argv[]){
       }
 
       // Then reset max and min eccentricites to current
-      for (int idx = 0; idx < N; idx++){
+      for (int idx = num_halted; idx < N; idx++){
         if (sims[idx]->status != REB_EXIT_COLLISION){     // Only copy if not halted
           sims[idx] = reb_copy_simulation(sims_temp[idx]);
           // Reset function pointers and custom parameters
