@@ -8,29 +8,14 @@
 
  *
  *  TO DO:
- *    x Change planet locations to astronomical units
- *    x Implement normal distribution generator
- *    x Add Mercury perturbations to heartbeat function
- *    x Implement multiple simulations
- *    x **NO LONGER NEEDED** Arrays for ecc max and min
- *    x Update eccentricities at each heartbeat call?
- *    x **NO LONGER NEEDED** Array for particle weights
- *    x REWEIGHTING
- *    x Implement sorted stratified resampling method
- *    x Splitting and killing - use identity splitting function V(x) = theta(x) = eccentricity range or constant multiple?
- *        can't copy simulations in place!!!!
- *    x Copy rebx to copied simulations
- *    x Manually copy new simulation parameters (weights, etc...)
- *    x Hill radii
- *    x Custom collision detection function that outputs to file?
- *    x Output eccentricities to file?
- *    o Find a way to make weights diverge more
- *    x Make sim indexing consistent (now all starts at 0)
  *
  *    o Tidy up and optimise DMC part of main()
- *    o Edit copy_sim function to include custom parameters
- *    o Check paper for details on how to retreive unbiased probability - Am I using the right weight?
- *    o In resampling: Selection of x-coordinate needs to exclude halted simulations
+ *    o Edit copy_sim function to include custom parameters - or inline my own?
+ *    x Check paper for details on how to retreive unbiased probability - Am I using the right weight?
+ *    x In resampling: Selection of x-coordinate needs to exclude halted simulations
+ *    o What about using average eccentricity as theta in this case?
+ *        The other planets are also unstable, so it doesn't seem appropriate anymore to
+*         focus solely on the innermost. Maybe we should also perturb the others?
  *
  *    UNITS:
  *        distance: Astronomical Unit
@@ -126,11 +111,11 @@ struct reb_simulation* init_sim(int sim_id){
     reb_add(r, star);
 
     for (int idx=0; idx<9; idx++){
-        double a = 1.+5e3*(double)idx/(double)(8);        // semi major axis
+        double a = 3.9e3*(1.+(double)idx/(double)(8));        // semi major axis
         double v = sqrt(1./a);                     // velocity (circular orbit)
         struct reb_particle planet = {0};
         planet.m = 1e-4;
-        planet.r = r_hill(r, idx);                    // Set planet radius to hill radius
+        planet.r = r_hill(r, idx+1);                    // Set planet radius to hill radius
                                     // A collision is recorded when planets get within their hill radius
                                     // The hill radius of the particles might change, so it should be recalculated after a while
         planet.lastcollision = 0;
