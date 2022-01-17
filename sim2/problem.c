@@ -1,8 +1,5 @@
 /**
- * First attempt at building solar system model with Mercury perturbations at regular intervals
-
- * Timings: 4 simulations to max time of 5e6 years took 1417s (user) (without collision detection)
- * Collision detection doesn't seem to take too long
+ * sim2: Same algorithm as sim1, but using a toy solar system model
 
  ******** REQUIRES MODIFIED rebound.h FILE WITH NEW SIMULATION PARAMETERS ********
 
@@ -63,6 +60,7 @@ double r_hill(struct reb_simulation* r, int planet_id){
 
 int collision_resolve_halt_print(struct reb_simulation* const r, struct reb_collision c){
     printf("Collision occurred in simulation %d!\tHalting!\n", r->sim_id);
+    printf("Planets had Hill radii %f and %f\n", r->particles[c.p1].r, r->particles[c.p2].r);
 
     char id_str[4];
     sprintf(id_str, "%d", r->sim_id);
@@ -111,7 +109,7 @@ struct reb_simulation* init_sim(int sim_id){
     reb_add(r, star);
 
     for (int idx=0; idx<9; idx++){
-        double a = 3.9e3*(1.+(double)idx/(double)(8));        // semi major axis
+        double a = 6e3*(1.+(double)idx/(double)(8));        // semi major axis
         double v = sqrt(1./a);                     // velocity (circular orbit)
         struct reb_particle planet = {0};
         planet.m = 1e-4;
@@ -136,8 +134,8 @@ void heartbeat(struct reb_simulation* r){
       }
 
       double pert = gaussian();
-      r->particles[1].x += 0.5*pert;
-      printf("\nPerturbed Mercury's x-coordinate by %f m\n", 0.5*pert);
+      r->particles[1].x += pert;
+      printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
 
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
@@ -145,17 +143,30 @@ void heartbeat(struct reb_simulation* r){
         reb_integrator_synchronize(r);
 
         // Update max and min eccentricities
-        struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[1], r->particles[0]);
-        if (merc_orb.e > r->merc_ecc_max){
-          r->merc_ecc_max = merc_orb.e;
+        struct reb_orbit orb;
+        double ecc = 0.;
+        for (int i = 1; i < 10; i++){
+          orb = reb_tools_particle_to_orbit(r->G, r->particles[i], r->particles[0]);
+          ecc += orb.e;
         }
-        if (merc_orb.e < r->merc_ecc_min){
-          r->merc_ecc_min = merc_orb.e;
+        ecc = ecc/9.;
+        if (orb.e > r->merc_ecc_max){
+          r->merc_ecc_max = ecc;
+        }
+        if (orb.e < r->merc_ecc_min){
+          r->merc_ecc_min = ecc;
         }
     }
 
     if (reb_output_check(r, 50000.)){
-        struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[1], r->particles[0]);
+      struct reb_orbit orb;
+      double ecc = 0.;
+      for (int i = 1; i < 10; i++){
+        orb = reb_tools_particle_to_orbit(r->G, r->particles[i], r->particles[0]);
+        ecc += orb.e;
+      }
+      ecc = ecc/9.;
+        //struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[3], r->particles[0]);
         char id_str[4];
         sprintf(id_str, "%d", r->sim_id);
 
@@ -165,7 +176,7 @@ void heartbeat(struct reb_simulation* r){
         FILE* fpt;
         fpt = fopen(filename, "a");
 
-        fprintf(fpt, "%f, ", merc_orb.e);
+        fprintf(fpt, "%f, ", ecc);
 
         fclose(fpt);
     }
@@ -186,17 +197,21 @@ void sort_sims(double* thetas, struct reb_simulation** sims, int N){
       temp_sim->sim_id = sims[i]->sim_id;
       temp_sim->sim_weight = sims[i]->sim_weight;
       temp_sim->prev_V = sims[i]->prev_V;
+      temp_sim->collision = REB_COLLISION_DIRECT;
+      temp_sim->collision_resolve = collision_resolve_halt_print;
 
       j = i - 1;
       while (j >= 0 && thetas[j] > temp_theta){
         thetas[j+1] = thetas[j];
-        //sims[j+1]   = sims[j];
+
         sims[j+1] = reb_copy_simulation(sims[j]);
         // Reset function pointers and custom variables
         sims[j+1]->heartbeat = heartbeat;
         sims[j+1]->sim_id = sims[j]->sim_id;
         sims[j+1]->sim_weight = sims[j]->sim_weight;
         sims[j+1]->prev_V = sims[j]->prev_V;
+        sims[j+1]->collision = REB_COLLISION_DIRECT;
+        sims[j+1]->collision_resolve = collision_resolve_halt_print;
 
         j--;
       }
@@ -208,6 +223,8 @@ void sort_sims(double* thetas, struct reb_simulation** sims, int N){
       sims[j+1]->sim_id = temp_sim->sim_id;
       sims[j+1]->sim_weight = temp_sim->sim_weight;
       sims[j+1]->prev_V = temp_sim->prev_V;
+      sims[j+1]->collision = REB_COLLISION_DIRECT;
+      sims[j+1]->collision_resolve = collision_resolve_halt_print;
     }
 }
 
@@ -226,7 +243,7 @@ int main(int argc, char* argv[]){
 
     // Initialise simulations ==================================================
     struct reb_simulation** sims = malloc(N*sizeof(struct reb_simulation*));
-    struct rebx_extras** rebx = malloc(N*sizeof(struct rebx_extras*));
+    //struct rebx_extras** rebx = malloc(N*sizeof(struct rebx_extras*));
 
     double avg_weight = 1.;
 
@@ -241,12 +258,14 @@ int main(int argc, char* argv[]){
       sims[i]->merc_ecc_max = merc_orb.e;
       sims[i]->merc_ecc_min = merc_orb.e;
 
+      /* Removing rebx for speed
       rebx[i] = rebx_attach(sims[i]);
       // Could also add "gr" or "gr_full" here.  See documentation for details.
       struct rebx_force* gr = rebx_load_force(rebx[i], "gr");
       rebx_add_force(rebx[i], gr);
       // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
       rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);
+      */
     }
     printf("============ Starting simulations ============");
 
@@ -263,7 +282,7 @@ int main(int argc, char* argv[]){
       // ======================== Integrate simulations ========================
       for (int idx = 0; idx < N; idx++){
         if (sims[idx]->status != REB_EXIT_COLLISION){
-          printf("\n\nIntegrating simulation %d until resampling time %d\n", sims[idx]->sim_id, i+1);
+          printf("\n\nIntegrating simulation %d until resampling time %f\n", sims[idx]->sim_id, times[i]);
 	        reb_integrate(sims[idx], times[i]);
         }
       }
@@ -343,6 +362,8 @@ int main(int argc, char* argv[]){
             sims_temp[j]->sim_id = sims[j]->sim_id;         // Retains starting id
             sims_temp[j]->sim_weight = sims[idx]->sim_weight;
             sims_temp[j]->prev_V = sims[idx]->prev_V;
+            sims_temp[j]->collision = REB_COLLISION_DIRECT;
+            sims_temp[j]->collision_resolve = collision_resolve_halt_print;
             printf("Simulation %d is now a copy of simulation %d\n", sims[j]->sim_id, sims[idx]->sim_id);
             break;
           }
@@ -358,7 +379,10 @@ int main(int argc, char* argv[]){
           sims[idx]->sim_id = sims_temp[idx]->sim_id;                // sim_id keeps track of starting id.
           sims[idx]->sim_weight = sims_temp[idx]->sim_weight;
           sims[idx]->prev_V = sims_temp[idx]->prev_V;
+          sims[idx]->collision = REB_COLLISION_DIRECT;
+          sims[idx]->collision_resolve = collision_resolve_halt_print;
 
+          /*
           // Reattach reboundx
           rebx[idx] = rebx_attach(sims[idx]);
           // Could also add "gr" or "gr_full" here.  See documentation for details.
@@ -366,6 +390,7 @@ int main(int argc, char* argv[]){
           rebx_add_force(rebx[idx], gr);
           // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
           rebx_set_param_double(rebx[idx], &gr->ap, "c", 10065.32);
+          */
         }
         // Free temporary simulation
         reb_free_simulation(sims_temp[idx]);
@@ -383,7 +408,7 @@ int main(int argc, char* argv[]){
     for (int i = 0; i < N; i++){
       printf("\nFreeing simulation %d", i);
 
-      rebx_free(rebx[i]);
+      //rebx_free(rebx[i]);
       reb_free_simulation(sims[i]);
     }
     free(sims);
