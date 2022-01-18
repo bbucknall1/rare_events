@@ -109,11 +109,11 @@ struct reb_simulation* init_sim(int sim_id){
     reb_add(r, star);
 
     for (int idx=0; idx<9; idx++){
-        double a = 6e3*(1.+(double)idx/(double)(8));        // semi major axis
+        double a = 1e4*(1.+(double)idx/(double)(8));        // semi major axis
         double v = sqrt(1./a);                     // velocity (circular orbit)
         struct reb_particle planet = {0};
         planet.m = 1e-4;
-        planet.r = r_hill(r, idx+1);                    // Set planet radius to hill radius
+        planet.r = 0.5*r_hill(r, idx+1);                    // Set planet radius to hill radius
                                     // A collision is recorded when planets get within their hill radius
                                     // The hill radius of the particles might change, so it should be recalculated after a while
         planet.lastcollision = 0;
@@ -130,10 +130,10 @@ struct reb_simulation* init_sim(int sim_id){
 void heartbeat(struct reb_simulation* r){
     if (reb_output_check(r, 1e6*2*M_PI)){         // Update Hill radii and perturb Mercury x-coord every 10 Myr
       for (int idx = 1; idx < 10; idx++){
-        r->particles[idx].r = r_hill(r, idx);
+        r->particles[idx].r = 0.5*r_hill(r, idx);
       }
 
-      double pert = gaussian();
+      double pert = 100*gaussian();
       r->particles[1].x += pert;
       printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
@@ -150,10 +150,10 @@ void heartbeat(struct reb_simulation* r){
           ecc += orb.e;
         }
         ecc = ecc/9.;
-        if (orb.e > r->merc_ecc_max){
+        if (ecc > r->merc_ecc_max){
           r->merc_ecc_max = ecc;
         }
-        if (orb.e < r->merc_ecc_min){
+        if (ecc < r->merc_ecc_min){
           r->merc_ecc_min = ecc;
         }
     }
@@ -249,14 +249,24 @@ int main(int argc, char* argv[]){
 
     struct reb_orbit merc_orb;
 
-    for (int i = 0; i < N; i++){
-      printf("Initialising simulation %d\n", i);
-      sims[i] = init_sim(i);
+    for (int idx = 0; idx < N; idx++){
+      printf("Initialising simulation %d\n", idx);
+      sims[idx] = init_sim(idx);
 
       // Get initial values of Mercury's eccentricity in each simulation
-      merc_orb = reb_tools_particle_to_orbit(sims[i]->G, sims[i]->particles[1], sims[i]->particles[0]);
-      sims[i]->merc_ecc_max = merc_orb.e;
-      sims[i]->merc_ecc_min = merc_orb.e;
+      //merc_orb = reb_tools_particle_to_orbit(sims[idx]->G, sims[idx]->particles[1], sims[idx]->particles[0]);
+      //sims[idx]->merc_ecc_max = merc_orb.e;
+      //sims[idx]->merc_ecc_min = merc_orb.e;
+
+      struct reb_orbit orb;
+      double ecc = 0.;
+      for (int i = 1; i < 10; i++){
+        orb = reb_tools_particle_to_orbit(sims[idx]->G, sims[idx]->particles[i], sims[idx]->particles[0]);
+        ecc += orb.e;
+      }
+      ecc = ecc/9.;
+      sims[idx]->merc_ecc_max = ecc;
+      sims[idx]->merc_ecc_min = ecc;
 
       /* Removing rebx for speed
       rebx[i] = rebx_attach(sims[i]);
@@ -396,9 +406,19 @@ int main(int argc, char* argv[]){
         reb_free_simulation(sims_temp[idx]);
 
         // Reset max and min eccentricies
-        merc_orb = reb_tools_particle_to_orbit(sims[idx]->G, sims[idx]->particles[1], sims[idx]->particles[0]);
-        sims[idx]->merc_ecc_max = merc_orb.e;
-        sims[idx]->merc_ecc_min = merc_orb.e;
+        //merc_orb = reb_tools_particle_to_orbit(sims[idx]->G, sims[idx]->particles[1], sims[idx]->particles[0]);
+        //sims[idx]->merc_ecc_max = merc_orb.e;
+        //sims[idx]->merc_ecc_min = merc_orb.e;
+
+        struct reb_orbit orb;
+        double ecc = 0.;
+        for (int i = 1; i < 10; i++){
+          orb = reb_tools_particle_to_orbit(sims[idx]->G, sims[idx]->particles[i], sims[idx]->particles[0]);
+          ecc += orb.e;
+        }
+        ecc = ecc/9.;
+        sims[idx]->merc_ecc_max = ecc;
+        sims[idx]->merc_ecc_min = ecc;
       }
 
       free(sims_temp);
