@@ -1,13 +1,13 @@
 N = 24;
 smth = 1001;
-%xs = 0:50000/(2*pi):(2e8)+10000;
-xs = (0:105625)*(50000/(2*pi));
+xs = 0:50000/(2*pi):(2e8)+10000;
+%xs = (0:105625)*(50000/(2*pi));
 L = length(xs);
 
 eccs = zeros(N+1, L);
 smoothed = zeros(N+1, L);
 
-eccs0 = readmatrix("sim_0_ecc_dmc.csv");
+%eccs0 = readmatrix("sim_0_ecc_dmc.csv");
 eccs3 = readmatrix("sim_3_ecc_dmc.csv");
 eccs6 = readmatrix("sim_6_ecc_dmc.csv");
 eccs9 = readmatrix("sim_9_ecc_dmc.csv");
@@ -34,7 +34,7 @@ eccs17 = readmatrix("sim_17_ecc_dmc.csv");
 eccs20 = readmatrix("sim_20_ecc_dmc.csv");
 eccs23 = readmatrix("sim_23_ecc_dmc.csv");
 
-smoothed0 = movmean(eccs0, smth);
+%smoothed0 = movmean(eccs0, smth);
 smoothed3 = movmean(eccs3, smth);
 smoothed6 = movmean(eccs6, smth);
 smoothed9 = movmean(eccs9, smth);
@@ -62,7 +62,7 @@ smoothed20 = movmean(eccs20, smth);
 smoothed23 = movmean(eccs23, smth);
 
 hold on
-plot(xs(1:length(smoothed0)), smoothed0);
+%plot(xs(1:length(smoothed0)), smoothed0);
 plot(xs(1:length(smoothed3)), smoothed3);
 plot(xs(1:length(smoothed6)), smoothed6);
 plot(xs(1:length(smoothed9)), smoothed9);
