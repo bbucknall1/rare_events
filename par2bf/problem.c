@@ -196,7 +196,7 @@ int main(int argc, char* argv[]){
       if (sims[idx]->status != REB_EXIT_COLLISION){
         printf("\n\nIntegrating simulation %d\n", sims[idx]->sim_id);
 	      reb_integrate(sims[idx], tmax);
-        printf("Simulation %d complete!\n", sims[idx]->sim_id);
+        printf("\nSimulation %d complete!\n", sims[idx]->sim_id);
       }
     }
 
