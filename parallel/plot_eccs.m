@@ -89,4 +89,7 @@ plot(xs(1:length(smoothed17)), smoothed17);
 plot(xs(1:length(smoothed20)), smoothed20);
 plot(xs(1:length(smoothed23)), smoothed23);
 
-ylim([0 0.5]);
+ylim([0.1 0.35]);
+title("Eccentricities of Mercury's orbit in brute-force simulation", "fontsize", 18);
+xlabel("Time (years)", "fontsize", 16);
+ylabel("Mercury eccentricity", "fontsize", 16);

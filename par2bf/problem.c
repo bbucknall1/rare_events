@@ -108,7 +108,7 @@ struct reb_simulation* init_sim(int sim_id){
     reb_add(r, star);
 
     for (int idx=0; idx<9; idx++){
-        double a = 1e4*(1.+(double)idx/(double)(8));        // semi major axis
+        double a = 5e4*(1.+(double)idx/(double)(8));        // semi major axis
         double v = sqrt(1./a);                     // velocity (circular orbit)
         struct reb_particle planet = {0};
         planet.m = 1e-4;
@@ -189,7 +189,7 @@ int main(int argc, char* argv[]){
     printf("============ Starting simulations ============");
 
     // Integrate simulations ===================================================
-    double tmax = 10e6*2*M_PI;     // Max time 0.1Gyr
+    double tmax = 1e8*2*M_PI;     // Max time 0.1Gyr
 
       // ======================== Integrate simulations ========================
     for (int idx = 0; idx < N; idx++){
