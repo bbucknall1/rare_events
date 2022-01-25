@@ -132,7 +132,7 @@ void heartbeat(struct reb_simulation* r){
         r->particles[idx].r = 0.5*r_hill(r, idx);
       }
 
-      double pert = 100*gaussian();
+      double pert = 500*gaussian();
       r->particles[1].x += pert;
       printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
