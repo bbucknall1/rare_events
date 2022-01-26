@@ -69,6 +69,9 @@ double gaussian(){
 }
 
 double r_hill(struct reb_simulation* r, int planet_id){
+    /*
+    Compute the Hill radius of a specified planet in simulation r
+    */
     struct reb_orbit o = reb_tools_particle_to_orbit(r->G, r->particles[planet_id], r->particles[0]);
     double m_star   = r->particles[0].m;
     double m_planet = r->particles[planet_id].m;
@@ -76,6 +79,10 @@ double r_hill(struct reb_simulation* r, int planet_id){
 }
 
 int collision_resolve_halt_print(struct reb_simulation* const r, struct reb_collision c){
+    /*
+    Custom collision resolutiomn function that halts the simulation, prints information about
+    the collision to file, and sets simulation weight to 0 (ensuring that it does not get copied)
+    */
     printf("Collision occurred in simulation %d!\tHalting!\n", r->sim_id);
     printf("Planets had Hill radii %f and %f\n", r->particles[c.p1].r, r->particles[c.p2].r);
 
@@ -102,22 +109,18 @@ int collision_resolve_halt_print(struct reb_simulation* const r, struct reb_coll
 struct reb_simulation* init_sim(int sim_id){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
-    r->sim_id = sim_id;
-    r->sim_weight = 1.;     // 1 = exp(0) .... eq (4)
-    r->prev_V = 0.;
-
-    r->collision = REB_COLLISION_DIRECT;
-    r->collision_resolve = collision_resolve_halt_print;
-
-    r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
-    //tmax              = 5e6*2*M_PI;            // 5 Myr
-    r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
-    r->ri_whfast.safe_mode     = 0;        // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
-    r->ri_whfast.corrector     = 11;        // 11th order symplectic corrector
-    r->integrator        = REB_INTEGRATOR_WHFAST;
-    r->heartbeat        = heartbeat;
-    r->exact_finish_time = 1; // Finish exactly at tmax in reb_integrate(). Default is already 1.
-    //r->integrator        = REB_INTEGRATOR_IAS15;        // Alternative non-symplectic integrator
+    r->sim_id               = sim_id;
+    r->sim_weight           = 1.;       // 1 = exp(0) .... eq (4)
+    r->prev_V               = 0.;
+    r->collision            = REB_COLLISION_DIRECT;
+    r->collision_resolve    = collision_resolve_halt_print;
+    r->dt                   = pow(65., .5)*2*M_PI/365.25;   // Corresponds to ~8.062 days
+    r->G                    = 1.;       // in AU^3 / SM / (year/2pi)^2
+    r->ri_whfast.safe_mode  = 0;        // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
+    r->ri_whfast.corrector  = 11;       // 11th order symplectic corrector
+    r->integrator           = REB_INTEGRATOR_WHFAST;
+    r->heartbeat            = heartbeat;
+    r->exact_finish_time    = 1;        // Finish exactly at tmax in reb_integrate(). Default is already 1.
 
     // Initial conditions - Model unstable system
     struct reb_particle star = {0};
@@ -138,9 +141,7 @@ struct reb_simulation* init_sim(int sim_id){
         planet.vy = v;
         reb_add(r, planet);
     }
-
     reb_move_to_com(r);
-
     return r;
 }
 
@@ -176,31 +177,30 @@ void heartbeat(struct reb_simulation* r){
     }
 
     if (reb_output_check(r, 50000.)){
-      struct reb_orbit orb;
-      double ecc = 0.;
-      for (int i = 1; i < 10; i++){
-        orb = reb_tools_particle_to_orbit(r->G, r->particles[i], r->particles[0]);
-        ecc += orb.e;
-      }
-      ecc = ecc/9.;
-        //struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[3], r->particles[0]);
-        char id_str[4];
-        sprintf(id_str, "%d", r->sim_id);
+        struct reb_orbit orb;
+        double ecc = 0.;
+        for (int i = 1; i < 10; i++){
+            orb = reb_tools_particle_to_orbit(r->G, r->particles[i], r->particles[0]);
+            ecc += orb.e;
+        }
+    ecc = ecc/9.;
 
-        char filename[64];
-        sprintf(filename, "sim_%s_ecc_dmc.csv", id_str);
+    char id_str[4];
+    sprintf(id_str, "%d", r->sim_id);
+    char filename[64];
+    sprintf(filename, "sim_%s_ecc_dmc.csv", id_str);
+    FILE* fpt;
 
-        FILE* fpt;
-        fpt = fopen(filename, "a");
-
-        fprintf(fpt, "%f, ", ecc);
-
-        fclose(fpt);
+    fpt = fopen(filename, "a");
+    fprintf(fpt, "%f, ", ecc);
+    fclose(fpt);
     }
 }
 
 void sort_sims(double* thetas, struct reb_simulation** sims, int N){
-    // Use insertion sort to order simulations in increasing values of theta (eccentricity range)
+    /*
+    Use insertion sort to order simulations in increasing values of theta (eccentricity range)
+    */
     int j;
     double temp_theta;
     struct reb_simulation* temp_sim;
@@ -254,7 +254,7 @@ void sort_sims(double* thetas, struct reb_simulation** sims, int N){
 int main(int argc, char* argv[]){
 
     // Get inputs ==============================================================
-    int N;
+    int N;              // Number of simulations
     if (argc == 1){
       N = 1;
     } else if (argc == 2){
@@ -266,11 +266,8 @@ int main(int argc, char* argv[]){
 
     // Initialise simulations ==================================================
     struct reb_simulation** sims = malloc(N*sizeof(struct reb_simulation*));
-    //struct rebx_extras** rebx = malloc(N*sizeof(struct rebx_extras*));
 
     double avg_weight = 1.;
-
-    struct reb_orbit merc_orb;
 
     for (int idx = 0; idx < N; idx++){
       printf("Initialising simulation %d\n", idx);
@@ -343,10 +340,7 @@ int main(int argc, char* argv[]){
 
       // Sort sims into increasing thetas
       sort_sims(thetas, sims, N);
-
-      // Relabel simulations based on their new ordering
       for (int idx = 0; idx < N; idx++){
-        //sims[idx]->sim_id = idx;
         printf("(After sorting) Sim %d now has theta %f and weight %f\n", sims[idx]->sim_id, thetas[idx], sims[idx]->sim_weight);
       }
 
