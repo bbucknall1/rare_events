@@ -15,6 +15,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <math.h>
+#include <omp.h>
 #include "rebound.h"
 #include "reboundx.h"
 
@@ -85,6 +86,9 @@ double gaussian(){
 }
 
 double r_hill(struct reb_simulation* r, int planet_id){
+    /*
+    Compute the Hill radius of a specified planet in simulation r
+    */
     struct reb_orbit o = reb_tools_particle_to_orbit(r->G, r->particles[planet_id], r->particles[0]);
     double m_star   = r->particles[0].m;
     double m_planet = r->particles[planet_id].m;
@@ -100,14 +104,12 @@ struct reb_simulation* init_sim(int sim_id){
     r->collision_resolve = reb_collision_resolve_halt;
 
     r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
-    //tmax              = 5e6*2*M_PI;            // 5 Myr
     r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
     r->ri_whfast.safe_mode     = 0;        // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
     r->ri_whfast.corrector     = 11;        // 11th order symplectic corrector
     r->integrator        = REB_INTEGRATOR_WHFAST;
     r->heartbeat        = heartbeat;
     r->exact_finish_time = 1; // Finish exactly at tmax in reb_integrate(). Default is already 1.
-    //r->integrator        = REB_INTEGRATOR_IAS15;        // Alternative non-symplectic integrator
 
     // Initial conditions
     for (int i=0;i<10;i++){
@@ -128,7 +130,7 @@ struct reb_simulation* init_sim(int sim_id){
 
 void heartbeat(struct reb_simulation* r){
     if (reb_output_check(r, 5e5*2*M_PI)){         // Perturb Mercury x-coord every 0.5 Myr
-      for (int idx = 1; idx < 10; idx++){
+      for (int idx = 1; idx < 10; idx++){         // Update Hill radius of all planets
         r->particles[idx].r = r_hill(r, idx);
       }
 
@@ -139,22 +141,19 @@ void heartbeat(struct reb_simulation* r){
     }
 
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
-        reb_output_timing(r, tmax);
         reb_integrator_synchronize(r);
-
+    }
+    if (reb_output_check(r, 50000.)){
         struct reb_orbit merc_orb = reb_tools_particle_to_orbit(r->G, r->particles[1], r->particles[0]);
-        
+
         char id_str[4];
         sprintf(id_str, "%d", r->sim_id);
-
         char filename[64];
         sprintf(filename, "sim_%s_ecc_bf.csv", id_str);
-
         FILE* fpt;
+
         fpt = fopen(filename, "a");
-
         fprintf(fpt, "%f, ", merc_orb.e);
-
         fclose(fpt);
     }
 }
@@ -181,22 +180,24 @@ int main(int argc, char* argv[]){
       sims[i] = init_sim(i);
 
       rebx[i] = rebx_attach(sims[i]);
-      // Could also add "gr" or "gr_full" here.  See documentation for details.
       struct rebx_force* gr = rebx_load_force(rebx[i], "gr");
       rebx_add_force(rebx[i], gr);
-      // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
-      rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);
+      rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);   // Set speed of light in units AU/(yr/2pi)
     }
     printf("============ Starting simulations ============");
 
     // Integrate simulations ===================================================
-    double tmax = 5e6*2*M_PI;
+    double tmax = 2e8*2*M_PI;
 
     // ======================== Integrate simulations ========================
+#pragma omp parallel num_threads(8)
+{
+#pragma omp for
     for (int idx = 0; idx < N; idx++){
       printf("\n\nIntegrating simulation %d\n", idx+1);
       reb_integrate(sims[idx], tmax);
     }
+}
 
     // Free simulations ========================================================
     for (int idx = 0; idx < N; idx++){
