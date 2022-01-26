@@ -7,10 +7,10 @@
  *  TO DO:
  *
  *    o Tidy up and optimise DMC part of main()
- *    o Edit copy_sim function to include custom parameters - or inline my own?
+ *    x Edit copy_sim function to include custom parameters - or inline my own?
  *    x Check paper for details on how to retreive unbiased probability - Am I using the right weight?
  *    x In resampling: Selection of x-coordinate needs to exclude halted simulations
- *    o What about using average eccentricity as theta in this case?
+ *    x What about using average eccentricity as theta in this case?
  *        The other planets are also unstable, so it doesn't seem appropriate anymore to
 *         focus solely on the innermost. Maybe we should also perturb the others?
  *
@@ -32,6 +32,23 @@
 
 void heartbeat(struct reb_simulation* r);
 double tmax;
+
+inline void my_copy_sim(struct reb_simulation* source, struct reb_simulation* dest){
+    /*
+    Copy simulation stored in source to destination.
+    Required to copy function pointers and custom variables.
+    */
+    // Use REBOUNDs default copy function
+    dest = reb_copy_simulation(source);
+    // Set function pointers
+    dest->heartbeat = heartbeat;
+    dest->collision = REB_COLLISION_DIRECT;
+    dest->collision_resolve = collision_resolve_halt_print;
+    // Copy custom variables
+    dest->sim_id = source->sim_id;
+    dest->sim_weight = source->sim_weight;
+    dest->prev_V = source->prev_V;
+}
 
 double gaussian(){
     /*
@@ -190,7 +207,8 @@ void sort_sims(double* thetas, struct reb_simulation** sims, int N){
 
     for (int i = 1; i < N; i++){
       temp_theta = thetas[i];
-      //temp_sim   = sims[i];
+      my_copy_sim(sims[i], temp_sim);           // copy sims[i] to temp_sim
+      /*
       temp_sim = reb_copy_simulation(sims[i]);
       // Reset function pointers and custom variables
       temp_sim->heartbeat = heartbeat;
@@ -199,11 +217,13 @@ void sort_sims(double* thetas, struct reb_simulation** sims, int N){
       temp_sim->prev_V = sims[i]->prev_V;
       temp_sim->collision = REB_COLLISION_DIRECT;
       temp_sim->collision_resolve = collision_resolve_halt_print;
+      */
 
       j = i - 1;
       while (j >= 0 && thetas[j] > temp_theta){
         thetas[j+1] = thetas[j];
-
+        my_copy_sim(sims[j], sims[j+1]);
+        /*
         sims[j+1] = reb_copy_simulation(sims[j]);
         // Reset function pointers and custom variables
         sims[j+1]->heartbeat = heartbeat;
@@ -212,11 +232,13 @@ void sort_sims(double* thetas, struct reb_simulation** sims, int N){
         sims[j+1]->prev_V = sims[j]->prev_V;
         sims[j+1]->collision = REB_COLLISION_DIRECT;
         sims[j+1]->collision_resolve = collision_resolve_halt_print;
+        */
 
         j--;
       }
       thetas[j+1] = temp_theta;
-      //sims[j+1]   = temp_sim;
+      my_copy_sim(temp_sim, sims[j+1]);
+      /*
       sims[j+1] = reb_copy_simulation(temp_sim);
       // Reset function pointers and custom variables
       sims[j+1]->heartbeat = heartbeat;
@@ -225,6 +247,7 @@ void sort_sims(double* thetas, struct reb_simulation** sims, int N){
       sims[j+1]->prev_V = temp_sim->prev_V;
       sims[j+1]->collision = REB_COLLISION_DIRECT;
       sims[j+1]->collision_resolve = collision_resolve_halt_print;
+      */
     }
 }
 
@@ -253,11 +276,6 @@ int main(int argc, char* argv[]){
       printf("Initialising simulation %d\n", idx);
       sims[idx] = init_sim(idx);
 
-      // Get initial values of Mercury's eccentricity in each simulation
-      //merc_orb = reb_tools_particle_to_orbit(sims[idx]->G, sims[idx]->particles[1], sims[idx]->particles[0]);
-      //sims[idx]->merc_ecc_max = merc_orb.e;
-      //sims[idx]->merc_ecc_min = merc_orb.e;
-
       struct reb_orbit orb;
       double ecc = 0.;
       for (int i = 1; i < 10; i++){
@@ -267,15 +285,6 @@ int main(int argc, char* argv[]){
       ecc = ecc/9.;
       sims[idx]->merc_ecc_max = ecc;
       sims[idx]->merc_ecc_min = ecc;
-
-      /* Removing rebx for speed
-      rebx[i] = rebx_attach(sims[i]);
-      // Could also add "gr" or "gr_full" here.  See documentation for details.
-      struct rebx_force* gr = rebx_load_force(rebx[i], "gr");
-      rebx_add_force(rebx[i], gr);
-      // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
-      rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);
-      */
     }
     printf("============ Starting simulations ============");
 
@@ -366,16 +375,20 @@ int main(int argc, char* argv[]){
 
         for (int idx = 0; idx < N; idx++){
           if (Qarg < resampling_bnds[idx]){
-            sims_temp[j] = reb_copy_simulation(sims[idx]);
-            // Reset function pointers and custom variables, but keep sim_id
-            sims_temp[j]->heartbeat = heartbeat;
-            sims_temp[j]->sim_id = sims[j]->sim_id;         // Retains starting id
-            sims_temp[j]->sim_weight = sims[idx]->sim_weight;
-            sims_temp[j]->prev_V = sims[idx]->prev_V;
-            sims_temp[j]->collision = REB_COLLISION_DIRECT;
-            sims_temp[j]->collision_resolve = collision_resolve_halt_print;
-            printf("Simulation %d is now a copy of simulation %d\n", sims[j]->sim_id, sims[idx]->sim_id);
-            break;
+              my_copy_sim(sims[idx], sims_temp[j]);
+              sims_temp[j]->sim_id = sims[j]->sim_id;       // Retains starting id
+              /*
+              sims_temp[j] = reb_copy_simulation(sims[idx]);
+              // Reset function pointers and custom variables, but keep sim_id
+              sims_temp[j]->heartbeat = heartbeat;
+              sims_temp[j]->sim_id = sims[j]->sim_id;         // Retains starting id
+              sims_temp[j]->sim_weight = sims[idx]->sim_weight;
+              sims_temp[j]->prev_V = sims[idx]->prev_V;
+              sims_temp[j]->collision = REB_COLLISION_DIRECT;
+              sims_temp[j]->collision_resolve = collision_resolve_halt_print;
+              */
+              printf("Simulation %d is now a copy of simulation %d\n", sims[j]->sim_id, sims[idx]->sim_id);
+              break;
           }
         }
       }
@@ -383,32 +396,20 @@ int main(int argc, char* argv[]){
       // Then reset max and min eccentricites to current
       for (int idx = num_halted; idx < N; idx++){
         if (sims[idx]->status != REB_EXIT_COLLISION){     // Only copy if not halted
-          sims[idx] = reb_copy_simulation(sims_temp[idx]);
-          // Reset function pointers and custom parameters
-          sims[idx]->heartbeat = heartbeat;
-          sims[idx]->sim_id = sims_temp[idx]->sim_id;                // sim_id keeps track of starting id.
-          sims[idx]->sim_weight = sims_temp[idx]->sim_weight;
-          sims[idx]->prev_V = sims_temp[idx]->prev_V;
-          sims[idx]->collision = REB_COLLISION_DIRECT;
-          sims[idx]->collision_resolve = collision_resolve_halt_print;
-
-          /*
-          // Reattach reboundx
-          rebx[idx] = rebx_attach(sims[idx]);
-          // Could also add "gr" or "gr_full" here.  See documentation for details.
-          struct rebx_force* gr = rebx_load_force(rebx[idx], "gr");
-          rebx_add_force(rebx[idx], gr);
-          // Have to set speed of light in right units (set by G & initial conditions).  Here we use default units of AU/(yr/2pi)
-          rebx_set_param_double(rebx[idx], &gr->ap, "c", 10065.32);
-          */
+            my_copy_sim(sims_temp[idx], sims[idx]);
+            /*
+            sims[idx] = reb_copy_simulation(sims_temp[idx]);
+            // Reset function pointers and custom parameters
+            sims[idx]->heartbeat = heartbeat;
+            sims[idx]->sim_id = sims_temp[idx]->sim_id;                // sim_id keeps track of starting id.
+            sims[idx]->sim_weight = sims_temp[idx]->sim_weight;
+            sims[idx]->prev_V = sims_temp[idx]->prev_V;
+            sims[idx]->collision = REB_COLLISION_DIRECT;
+            sims[idx]->collision_resolve = collision_resolve_halt_print;
+            */
         }
         // Free temporary simulation
         reb_free_simulation(sims_temp[idx]);
-
-        // Reset max and min eccentricies
-        //merc_orb = reb_tools_particle_to_orbit(sims[idx]->G, sims[idx]->particles[1], sims[idx]->particles[0]);
-        //sims[idx]->merc_ecc_max = merc_orb.e;
-        //sims[idx]->merc_ecc_min = merc_orb.e;
 
         struct reb_orbit orb;
         double ecc = 0.;
@@ -428,7 +429,6 @@ int main(int argc, char* argv[]){
     for (int i = 0; i < N; i++){
       printf("\nFreeing simulation %d", i);
 
-      //rebx_free(rebx[i]);
       reb_free_simulation(sims[i]);
     }
     free(sims);
