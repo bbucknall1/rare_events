@@ -2,7 +2,7 @@
  * Brute force method.
  * Multiple simulations with Mercury perturbation, but no DMC
 
- ******** REQUIRES MODIFIED rebound.h FILE WITH NEW SIMULATION PARAMETERS ********
+ ******** REQUIRES MODIFIED rebound.h FILE WITH NEW SIMULATION PARAMETER sim_id ********
 
  *
  *    UNITS:
@@ -19,8 +19,8 @@
 #include "rebound.h"
 #include "reboundx.h"
 
-#define SOLAR_MASS 1.988544e30     // Solar Mass in kg
-#define AU 149597870700         // Astronomical Unit in m
+#define SOLAR_MASS 1.988544e30    // Solar Mass in kg
+#define AU 149597870700           // Astronomical Unit in m
 
 double ss_pos[10][3] =
 {
@@ -96,20 +96,22 @@ double r_hill(struct reb_simulation* r, int planet_id){
 }
 
 struct reb_simulation* init_sim(int sim_id){
+    /*
+    Initialise simulation with ID sim_id
+    */
     struct reb_simulation* r = reb_create_simulation();
+
     // Setup constants
-    r->sim_id = sim_id;
-
-    r->collision = REB_COLLISION_DIRECT;
-    r->collision_resolve = reb_collision_resolve_halt;
-
-    r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
-    r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
-    r->ri_whfast.safe_mode     = 0;        // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
-    r->ri_whfast.corrector     = 11;        // 11th order symplectic corrector
-    r->integrator        = REB_INTEGRATOR_WHFAST;
-    r->heartbeat        = heartbeat;
-    r->exact_finish_time = 1; // Finish exactly at tmax in reb_integrate(). Default is already 1.
+    r->sim_id               = sim_id;
+    r->collision            = REB_COLLISION_DIRECT;
+    r->collision_resolve    = reb_collision_resolve_halt;
+    r->dt                   = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
+    r->G                    = 1.;         // in AU^3 / SM / (year/2pi)^2
+    r->ri_whfast.safe_mode  = 0;          // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
+    r->ri_whfast.corrector  = 11;         // 11th order symplectic corrector
+    r->integrator           = REB_INTEGRATOR_WHFAST;
+    r->heartbeat            = heartbeat;
+    r->exact_finish_time    = 1;          // Finish exactly at tmax in reb_integrate(). Default is already 1.
 
     // Initial conditions
     for (int i=0;i<10;i++){
@@ -122,9 +124,7 @@ struct reb_simulation* init_sim(int sim_id){
 
         reb_add(r, p);
     }
-
     reb_move_to_com(r);
-
     return r;
 }
 
@@ -134,13 +134,11 @@ void heartbeat(struct reb_simulation* r){
         r->particles[idx].r = r_hill(r, idx);
       }
 
-      //double pert = 0.38*gaussian();
       double pert = 100*gaussian();
       r->particles[1].x += pert/AU;
       printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
-
-    if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
+    if (reb_output_check(r, 10000.)){           // Synchronise integrator
         reb_integrator_synchronize(r);
     }
     if (reb_output_check(r, 50000.)){
@@ -171,6 +169,8 @@ int main(int argc, char* argv[]){
       return 1;
     }
 
+    double tmax = 2e8*2*M_PI;     // Final simulation time
+
     // Initialise simulations ==================================================
     struct reb_simulation** sims = malloc(N*sizeof(struct reb_simulation*));
     struct rebx_extras** rebx = malloc(N*sizeof(struct rebx_extras*));
@@ -184,12 +184,9 @@ int main(int argc, char* argv[]){
       rebx_add_force(rebx[i], gr);
       rebx_set_param_double(rebx[i], &gr->ap, "c", 10065.32);   // Set speed of light in units AU/(yr/2pi)
     }
-    printf("============ Starting simulations ============");
 
     // Integrate simulations ===================================================
-    double tmax = 2e8*2*M_PI;
-
-    // ======================== Integrate simulations ========================
+    printf("============ Starting simulations ============");
 #pragma omp parallel num_threads(8)
 {
 #pragma omp for
@@ -208,6 +205,6 @@ int main(int argc, char* argv[]){
     }
     free(sims);
 
-    printf("\n ====END==== \n");
+    printf("\n============ END ============\n");
     return 0;
 }
