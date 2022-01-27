@@ -108,7 +108,7 @@ struct reb_simulation* init_sim(int sim_id){
     reb_add(r, star);
 
     for (int idx=0; idx<9; idx++){
-        double a = 1e5*(1.+(double)idx/(double)(8));        // semi major axis
+        double a = 8e4*(1.+(double)idx/(double)(8));        // semi major axis
         double v = sqrt(1./a);                     // velocity (circular orbit)
         struct reb_particle planet = {0};
         planet.m = 1e-4;
