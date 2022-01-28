@@ -85,21 +85,17 @@ struct reb_simulation* init_sim(int sim_id){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
     r->sim_id = sim_id;
-    r->sim_weight = 1.;     // 1 = exp(0) .... eq (4)
-    r->prev_V = 0.;
 
     r->collision = REB_COLLISION_DIRECT;
     r->collision_resolve = collision_resolve_halt_print;
 
     r->dt             = pow(65., .5)*2*M_PI/365.25; // Corresponds to ~8.062 days
-    //tmax              = 5e6*2*M_PI;            // 5 Myr
     r->G              = 1.;               // in AU^3 / SM / (year/2pi)^2
     r->ri_whfast.safe_mode     = 0;        // Turn off safe mode. Need to call reb_integrator_synchronize() before outputs.
     r->ri_whfast.corrector     = 11;        // 11th order symplectic corrector
     r->integrator        = REB_INTEGRATOR_WHFAST;
     r->heartbeat        = heartbeat;
     r->exact_finish_time = 1; // Finish exactly at tmax in reb_integrate(). Default is already 1.
-    //r->integrator        = REB_INTEGRATOR_IAS15;        // Alternative non-symplectic integrator
 
     // Initial conditions - Model unstable system
     struct reb_particle star = {0};
@@ -108,7 +104,7 @@ struct reb_simulation* init_sim(int sim_id){
     reb_add(r, star);
 
     for (int idx=0; idx<9; idx++){
-        double a = 8e4*(1.+(double)idx/(double)(8));        // semi major axis
+        double a = 6e4*(1.+(double)idx/(double)(8));        // semi major axis
         double v = sqrt(1./a);                     // velocity (circular orbit)
         struct reb_particle planet = {0};
         planet.m = 1e-4;
