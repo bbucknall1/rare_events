@@ -24,4 +24,3 @@ plot(xs(1:length(eccs0)), eccs0);
 % plot(xs(1:length(eccs7)), eccs7);
 % plot(xs(1:length(eccs8)), eccs8);
 % plot(xs(1:length(eccs9)), eccs9);
-%plot(xs(1:length(eccs10)), eccs10);

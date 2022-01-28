@@ -33,23 +33,6 @@
 void heartbeat(struct reb_simulation* r);
 double tmax;
 
-inline void my_copy_sim(struct reb_simulation* source, struct reb_simulation* dest){
-    /*
-    Copy simulation stored in source to destination.
-    Required to copy function pointers and custom variables.
-    */
-    // Use REBOUNDs default copy function
-    dest = reb_copy_simulation(source);
-    // Set function pointers
-    dest->heartbeat = heartbeat;
-    dest->collision = REB_COLLISION_DIRECT;
-    dest->collision_resolve = collision_resolve_halt_print;
-    // Copy custom variables
-    dest->sim_id = source->sim_id;
-    dest->sim_weight = source->sim_weight;
-    dest->prev_V = source->prev_V;
-}
-
 double gaussian(){
     /*
     Compute a Guassian random variable using the Marsaglia (Box-Muller) method
@@ -106,6 +89,24 @@ int collision_resolve_halt_print(struct reb_simulation* const r, struct reb_coll
     return 0;
 }
 
+inline struct reb_simulation* my_copy_sim(struct reb_simulation* source){
+    /*
+    Copy simulation stored in source to destination.
+    Required to copy function pointers and custom variables.
+    */
+    // Use REBOUNDs default copy function
+    struct reb_simulation* out = reb_copy_simulation(source);
+    // Set function pointers
+    out->heartbeat = heartbeat;
+    out->collision = REB_COLLISION_DIRECT;
+    out->collision_resolve = collision_resolve_halt_print;
+    // Copy custom variables
+    out->sim_id = source->sim_id;
+    out->sim_weight = source->sim_weight;
+    out->prev_V = source->prev_V;
+    return out;
+}
+
 struct reb_simulation* init_sim(int sim_id){
     struct reb_simulation* r = reb_create_simulation();
     // Setup constants
@@ -129,7 +130,7 @@ struct reb_simulation* init_sim(int sim_id){
     reb_add(r, star);
 
     for (int idx=0; idx<9; idx++){
-        double a = 1e4*(1.+(double)idx/(double)(8));        // semi major axis
+        double a = 6e4*(1.+(double)idx/(double)(8));        // semi major axis
         double v = sqrt(1./a);                     // velocity (circular orbit)
         struct reb_particle planet = {0};
         planet.m = 1e-4;
@@ -147,53 +148,45 @@ struct reb_simulation* init_sim(int sim_id){
 
 void heartbeat(struct reb_simulation* r){
     if (reb_output_check(r, 1e6*2*M_PI)){         // Update Hill radii and perturb Mercury x-coord every 10 Myr
-      for (int idx = 1; idx < 10; idx++){
-        r->particles[idx].r = 0.5*r_hill(r, idx);
-      }
+        for (int idx = 1; idx < 10; idx++){
+            r->particles[idx].r = 0.5*r_hill(r, idx);
+        }
 
-      double pert = 100*gaussian();
-      r->particles[1].x += pert;
-      printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
+        double pert = 1000*gaussian();
+        r->particles[1].x += pert;
+        printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
 
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
-        reb_output_timing(r, tmax);
+        //reb_output_timing(r, tmax);
         reb_integrator_synchronize(r);
 
         // Update max and min eccentricities
         struct reb_orbit orb;
         double ecc = 0.;
         for (int i = 1; i < 10; i++){
-          orb = reb_tools_particle_to_orbit(r->G, r->particles[i], r->particles[0]);
-          ecc += orb.e;
-        }
-        ecc = ecc/9.;
-        if (ecc > r->merc_ecc_max){
-          r->merc_ecc_max = ecc;
-        }
-        if (ecc < r->merc_ecc_min){
-          r->merc_ecc_min = ecc;
-        }
-    }
-
-    if (reb_output_check(r, 50000.)){
-        struct reb_orbit orb;
-        double ecc = 0.;
-        for (int i = 1; i < 10; i++){
             orb = reb_tools_particle_to_orbit(r->G, r->particles[i], r->particles[0]);
             ecc += orb.e;
         }
-    ecc = ecc/9.;
+        ecc = ecc/9.;
+        if (ecc > r->merc_ecc_max){
+            r->merc_ecc_max = ecc;
+        }
+        if (ecc < r->merc_ecc_min){
+            r->merc_ecc_min = ecc;
+        }
 
-    char id_str[4];
-    sprintf(id_str, "%d", r->sim_id);
-    char filename[64];
-    sprintf(filename, "sim_%s_ecc_dmc.csv", id_str);
-    FILE* fpt;
+        if (reb_output_check(r, 50000.)){
+            char id_str[4];
+            sprintf(id_str, "%d", r->sim_id);
+            char filename[64];
+            sprintf(filename, "sim_%s_ecc_dmc.csv", id_str);
+            FILE* fpt;
 
-    fpt = fopen(filename, "a");
-    fprintf(fpt, "%f, ", ecc);
-    fclose(fpt);
+            fpt = fopen(filename, "a");
+            fprintf(fpt, "%f, ", ecc);
+            fclose(fpt);
+        }
     }
 }
 
@@ -203,51 +196,18 @@ void sort_sims(double* thetas, struct reb_simulation** sims, int N){
     */
     int j;
     double temp_theta;
-    struct reb_simulation* temp_sim;
 
     for (int i = 1; i < N; i++){
       temp_theta = thetas[i];
-      my_copy_sim(sims[i], temp_sim);           // copy sims[i] to temp_sim
-      /*
-      temp_sim = reb_copy_simulation(sims[i]);
-      // Reset function pointers and custom variables
-      temp_sim->heartbeat = heartbeat;
-      temp_sim->sim_id = sims[i]->sim_id;
-      temp_sim->sim_weight = sims[i]->sim_weight;
-      temp_sim->prev_V = sims[i]->prev_V;
-      temp_sim->collision = REB_COLLISION_DIRECT;
-      temp_sim->collision_resolve = collision_resolve_halt_print;
-      */
-
+      struct reb_simulation* temp_sim = my_copy_sim(sims[i]);
       j = i - 1;
       while (j >= 0 && thetas[j] > temp_theta){
         thetas[j+1] = thetas[j];
-        my_copy_sim(sims[j], sims[j+1]);
-        /*
-        sims[j+1] = reb_copy_simulation(sims[j]);
-        // Reset function pointers and custom variables
-        sims[j+1]->heartbeat = heartbeat;
-        sims[j+1]->sim_id = sims[j]->sim_id;
-        sims[j+1]->sim_weight = sims[j]->sim_weight;
-        sims[j+1]->prev_V = sims[j]->prev_V;
-        sims[j+1]->collision = REB_COLLISION_DIRECT;
-        sims[j+1]->collision_resolve = collision_resolve_halt_print;
-        */
-
+        sims[j+1] = my_copy_sim(sims[j]);
         j--;
       }
       thetas[j+1] = temp_theta;
-      my_copy_sim(temp_sim, sims[j+1]);
-      /*
-      sims[j+1] = reb_copy_simulation(temp_sim);
-      // Reset function pointers and custom variables
-      sims[j+1]->heartbeat = heartbeat;
-      sims[j+1]->sim_id = temp_sim->sim_id;
-      sims[j+1]->sim_weight = temp_sim->sim_weight;
-      sims[j+1]->prev_V = temp_sim->prev_V;
-      sims[j+1]->collision = REB_COLLISION_DIRECT;
-      sims[j+1]->collision_resolve = collision_resolve_halt_print;
-      */
+      sims[j+1] = my_copy_sim(temp_sim);
     }
 }
 
@@ -263,6 +223,8 @@ int main(int argc, char* argv[]){
       printf("Incorrect input arguments: aborting\n");
       return 1;
     }
+
+    srand((unsigned int)time(NULL));
 
     // Initialise simulations ==================================================
     struct reb_simulation** sims = malloc(N*sizeof(struct reb_simulation*));
@@ -286,7 +248,9 @@ int main(int argc, char* argv[]){
     printf("============ Starting simulations ============");
 
     // Integrate simulations ===================================================
-    double times[5] = {2e6*2*M_PI, 4e6*2*M_PI, 6e6*2*M_PI, 8e6*2*M_PI, 10e6*2*M_PI};     // Max time 0.1Gyr
+    double times[5] = {1e7*2*M_PI,  2e7*2*M_PI,  3e7*2*M_PI,  4e7*2*M_PI,  5e7*2*M_PI,
+                       6e7*2*M_PI,  7e7*2*M_PI,  8e7*2*M_PI,  9e7*2*M_PI,  10e7*2*M_PI,
+                       11e7*2*M_PI, 12e7*2*M_PI, 13e7*2*M_PI, 14e7*2*M_PI, 15e7*2*M_PI};     // Max time 0.1Gyr
 
     double resampling_bnds[N];
     double total_sum_weights;
@@ -294,7 +258,7 @@ int main(int argc, char* argv[]){
 
     int num_halted;
 
-    for (int i = 0; i < 5; i++){                  // i is resampling iteration
+    for (int i = 0; i < 15; i++){                  // i is resampling iteration
       // ======================== Integrate simulations ========================
       for (int idx = 0; idx < N; idx++){
         if (sims[idx]->status != REB_EXIT_COLLISION){
@@ -320,7 +284,7 @@ int main(int argc, char* argv[]){
 
       for (int idx = 0; idx < N; idx++){
         theta = sims[idx]->merc_ecc_max - sims[idx]->merc_ecc_min;
-        new_V = theta;
+        new_V = 100*theta;
         new_weights[idx] = avg_weight*exp(new_V - sims[idx]->prev_V);     // eq (5)
         sims[idx]->prev_V = new_V;
         thetas[idx] = theta;
@@ -335,6 +299,7 @@ int main(int argc, char* argv[]){
           num_halted++;
         }
       }
+
 
       // =========================== 2b: Resampling ============================
 
@@ -369,18 +334,8 @@ int main(int argc, char* argv[]){
 
         for (int idx = 0; idx < N; idx++){
           if (Qarg < resampling_bnds[idx]){
-              my_copy_sim(sims[idx], sims_temp[j]);
+              sims_temp[j] = my_copy_sim(sims[idx]);
               sims_temp[j]->sim_id = sims[j]->sim_id;       // Retains starting id
-              /*
-              sims_temp[j] = reb_copy_simulation(sims[idx]);
-              // Reset function pointers and custom variables, but keep sim_id
-              sims_temp[j]->heartbeat = heartbeat;
-              sims_temp[j]->sim_id = sims[j]->sim_id;         // Retains starting id
-              sims_temp[j]->sim_weight = sims[idx]->sim_weight;
-              sims_temp[j]->prev_V = sims[idx]->prev_V;
-              sims_temp[j]->collision = REB_COLLISION_DIRECT;
-              sims_temp[j]->collision_resolve = collision_resolve_halt_print;
-              */
               printf("Simulation %d is now a copy of simulation %d\n", sims[j]->sim_id, sims[idx]->sim_id);
               break;
           }
@@ -390,17 +345,7 @@ int main(int argc, char* argv[]){
       // Then reset max and min eccentricites to current
       for (int idx = num_halted; idx < N; idx++){
         if (sims[idx]->status != REB_EXIT_COLLISION){     // Only copy if not halted
-            my_copy_sim(sims_temp[idx], sims[idx]);
-            /*
-            sims[idx] = reb_copy_simulation(sims_temp[idx]);
-            // Reset function pointers and custom parameters
-            sims[idx]->heartbeat = heartbeat;
-            sims[idx]->sim_id = sims_temp[idx]->sim_id;                // sim_id keeps track of starting id.
-            sims[idx]->sim_weight = sims_temp[idx]->sim_weight;
-            sims[idx]->prev_V = sims_temp[idx]->prev_V;
-            sims[idx]->collision = REB_COLLISION_DIRECT;
-            sims[idx]->collision_resolve = collision_resolve_halt_print;
-            */
+            sims[idx] = my_copy_sim(sims_temp[idx]);
         }
         // Free temporary simulation
         reb_free_simulation(sims_temp[idx]);

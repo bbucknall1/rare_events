@@ -128,13 +128,13 @@ void heartbeat(struct reb_simulation* r){
         r->particles[idx].r = 0.5*r_hill(r, idx);
       }
 
-      double pert = 500*gaussian();
+      double pert = 1000*gaussian();
       r->particles[1].x += pert;
       printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
     }
 
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
-        reb_output_timing(r, tmax);
+        //reb_output_timing(r, tmax);
         reb_integrator_synchronize(r);
 
         if (reb_output_check(r, 50000.)){
@@ -174,6 +174,8 @@ int main(int argc, char* argv[]){
       printf("Incorrect input arguments: aborting\n");
       return 1;
     }
+
+    srand((unsigned int)time(NULL));
 
     // Initialise simulations ==================================================
     struct reb_simulation** sims = malloc(N*sizeof(struct reb_simulation*));
