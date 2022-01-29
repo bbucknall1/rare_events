@@ -130,7 +130,7 @@ void heartbeat(struct reb_simulation* r){
 
       double pert = 1000*gaussian();
       r->particles[1].x += pert;
-      printf("\nPerturbed Mercury's x-coordinate by %f m\n", pert);
+      printf("Perturbed Mercury's x-coordinate by %f m\n", pert);
     }
 
     if (reb_output_check(r, 10000.)){           // Display (default heartbeat function)
@@ -187,7 +187,7 @@ int main(int argc, char* argv[]){
     printf("============ Starting simulations ============");
 
     // Integrate simulations ===================================================
-    double tmax = 1e8*2*M_PI;     // Max time 0.1Gyr
+    double tmax = 15e7*2*M_PI;     // Max time 0.1Gyr
 
       // ======================== Integrate simulations ========================
     for (int idx = 0; idx < N; idx++){
